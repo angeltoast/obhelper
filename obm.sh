@@ -22,13 +22,13 @@ Gstring="y"          # For returning strings from functions
 declare -a OBrecord  # Array to hold the entire menu.xml
 
 if [ !$1 ]; then
-   XmlPath="/home/elizabeth/CodingWorkshops/BashWorkshop/obm"
+   XmlPath="/home/$USER/.config/openbox/menu.xml"
 else
    XmlPath=$1
 fi
 
 LoadHeaders() {      # Collect contents of current menu.xml
-   readarray -t OBrecord < $XmlPath/menu.xml    # Copy file into array
+   readarray -t OBrecord < $XmlPath  # Copy file into array
    MakeFile                            # Use array to prepare
    return 0                            #  the file for display
 } # End LoadHeaders
