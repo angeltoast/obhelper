@@ -23,6 +23,7 @@ source obh2.sh
 source obh3.sh
 source obh4.sh
 source obh5.sh
+source obh6.sh
 
 # Global variables
 Gnumber=0            # For returning integers from functions
@@ -37,14 +38,15 @@ else
 fi
 
 function Main() {
+   cp $XmlPath check.obh                  # For comparison on exit
    while true
    do
-      Tidy                             # Remove any lingering work files
-      cp $XmlPath temp.obh             # Make a copy of menu.xml to work with
-      LoadHeaders
-      if [ $? -ne 0 ]; then break; fi
+      Tidy                                # Remove any lingering work files
+      readarray -t OBfile < $XmlPath      # Read master file into array
+      MakeFile                            # Use array to prepare for display
+      if [ $? -ne 0 ]; then break; fi     # If error in MakeFile
       ShowList
-      if [ $? -ne 0 ]; then break; fi
+      if [ $? -ne 0 ]; then break; fi    # If error in ShowList
    done
    # Check if temp.obh has changed from $XmlPath
    filecmp=$(cmp $XmlPath check.obh)

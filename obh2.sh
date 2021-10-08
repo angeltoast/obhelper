@@ -16,17 +16,12 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-function LoadHeaders() { # Collect contents of current menu.xml
-   readarray -t OBfile < temp.obh    # Read working file into array
-   MakeFile                          # Use array to prepare for display
-   return $?
-} # End LoadHeaders
-
-function MakeFile() {   # Prepare the display file
+function MakeFile() {      # Prepare the display file
    # Note: The display file excludes the XML declaration and the opening
    # "<openbox_menu>" and closing "</openbox_menu>" tags, as well as all
    # other closing tags (</menu> </item> </action>)
    # But those items are all in the OBfile array for consistency with menu.xml
+   rm display.obh 2>/dev/null
    items=${#OBfile[@]}     # Count records in the OBfile array copy of menu.xml
    menuLevel=0             # To manage indenting
    spaces=""               # Also for indenting

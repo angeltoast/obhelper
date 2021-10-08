@@ -91,7 +91,6 @@ function ShowList() { # Use Yad to display the file contents in a listbox
       16) SaveToFile ;;
       *) return 1
       esac
-      Tidy
       MakeFile    # Rebuild display.obh
    done
    return 0
@@ -210,7 +209,7 @@ function FormatOutput() {  # Try to indent edited records appropriately
    done
 } # End FormatOutput
 
-function EditObject() { # Choose action based on type of object WIP Needs testing
+function EditObject() { # Choose action based on type of object TEST
                # $1 is selected object ID number
    OBID=$1
    item="$(echo ${OBfile[$OBID]} | cut -d'<' -f2 | cut -c1-4)"
