@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openbox_menu xmlns="http://openbox.org/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://openbox.org/                 file:///usr/share/openbox/menu.xsd">
+    <menu id="root-menu" label="Openbox 3">
+        <separator label="Internet"/>
+        <item label="Firefox">
+                <action name="Execute">
+                    <execute>firefox</execute>
+                </action>
+        </item>
+        <separator label="Games"/>
+        <menu id="root-menu-885940" label="Stumped Game">
+            <item label="Stumped Game">
+                <action name="Execute">
+                    <execute>epiphany</execute>
+                </action>
+            </item>
+        </menu>
+        <item label="Solitaire games">
+            <action name="Execute">
+                <execute>sol</execute>
+            </action>
+        </item>
+        <separator label="Writing"/>
+        <item label="Artha">
+            <action name="Execute">
+                <execute>artha</execute>
+            </action>
+        </item>
+        <item label="LibreOffice">
+            <action name="Execute">
+                <execute>libreoffice</execute>
+            </action>
+        </item>
+        <separator label="Coding"/>
+        <item label="Geany">
+            <action name="Execute">
+                <execute>geany</execute>
+            </action>
+        </item>
+        <item label="Mousepad">
+            <action name="Execute">
+                <execute>mousepad</execute>
+            </action>
+        </item>
+        <item label="Lazarus">
+            <action name="Execute">
+                <execute>startlazarus-2.0.10 %f</execute>
+            </action>
+        </item>
+        <separator label="Tools"/>
+        <item label="File Manager">
+            <action name="Execute">
+                <execute>pcmanfm</execute>
+            </action>
+        </item>
+        <item label="Terminal">
+            <action name="Execute">
+                <execute>lxterminal</execute>
+            </action>
+        </item>
+        <item label="Screenshot">
+            <action name="Execute">
+                <execute>gnome-screenshot --interactive</execute>
+            </action>
+        </item>
+        <item label="Synaptic">
+            <action name="Execute">
+                <execute>lxterminal -e &quot;sudo synaptic&quot;</execute>
+            </action>
+        </item>
+        <separator label="System"/>
+        <item label="Openbox Reconfigure">
+            <action name="Execute">
+                <execute>xterm -T "Done" -geometry 90x10+300+250 -fa monospace -fs 10 -e "openbox --reconfigure
+                echo 'Reconfigured Openbox'
+                read -p 'Please press [Enter] ...'
+                "</execute>
+            </action>
+        </item>
+        <item label="Quit">
+            <action name="Execute">
+                <execute>lxsession-logout --prompt &quot;End your Debian Openbox session&quot; --banner .face --side left</execute>
+            </action>
+        </item>
+    </menu>
+</openbox_menu>

@@ -1,0 +1,50 @@
+OBhelper - A project written in bash to do what obmenu used to do
+Started 29 August 2021
+Elizabeth Mills	8th October 2021
+
+!! 	NOTE: This document is not up to date - new .sh modules added 	!!
+!! 	since this was written, and some functions moved.								!!
+!! 	All functions now written except move up and move down.					!!
+!! 	Testing needed of all functions.																!!
+
+Structure of the existing code as at 5th October 2021
+-----------------------------------------------------
+Global variables:
+Gnumber=0             For returning integers from functions
+Gstring="y"           For returning strings from functions
+declare -a OBfile     Array to hold the entire menu.xml file
+
+Working files:
+menu.xml
+display.obh
+temp.obh
+
+# ---------- obh.sh ----------
+Main() {
+|_
+   Tidy()         Clear temporary files
+   obh2.LoadHeaders
+   obh2.ShowList
+   BaleOut()      Close the application
+
+ShowMessage()  Show a message in a pop-up terminal window
+
+# ---------- obh2.sh ----------
+LoadHeaders()  Collect contents of current menu.xml
+|_
+   MakeFile()     Prepare the display file
+   |_
+      Indentation()        Indentation according to menu level
+
+ShowList()     Use Yad to display the file contents in a listbox
+|_
+   AddObject()    WIP
+   SaveToFile()   TODO
+   DeleteObject() TODO
+   EditObject()   Choose action based on type of object
+   FormatItem()   Load, edit and save the record
+   FormatMenu()   Load, edit and save the record
+   FormatSep()    Load, edit and save the separator
+   FormatOutput() Try to indent edited records appropriately
+   MoveUp()       TODO
+   MoveDown()     TODO
