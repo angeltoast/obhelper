@@ -2,7 +2,7 @@
 
 # obh.sh - Main module
 
-# OBhelper - A project written in bash to do what obmenu used to do
+# OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 6 October 2021
 # Elizabeth Mills
 
@@ -30,6 +30,10 @@ Gnumber=0            # For returning integers from functions
 Gstring=""           # For returning strings from functions
 declare -a OBfile    # Array to hold a copy of the entire menu.xml file
 
+# Data files
+# menu.xml  -  The Openbox static menu configuration file
+# temp.obh  -  Used during session to update OBfile array
+
 if [ !$1 ]; then     # Paths for testing and use
    # XmlPath="/home/$USER/.config/openbox/menu.xml"
    XmlPath="menu.xml"
@@ -38,21 +42,46 @@ else
 fi
 
 function Main() {
+   if [[ ! -f check.obh ]]; then # Only display on first use
+   ShowMessage "Welcome to OBhelper, the graphical assistant for managing your Openbox static menu configuration file." "Please note that changes you make during the session will not become permanent until you choose the 'Save' option."
+   fi
    cp $XmlPath check.obh                  # For comparison on exit
    while true
    do
-      Tidy                                # Remove any lingering work files
-      readarray -t OBfile < $XmlPath      # Read master file into array
+     # readarray -t OBfile < $XmlPath      # Read master file into array
+      # ------------------ Added 09/10/21 --------------
+      rm temp.obh 2>/dev/null
+      # Trim records from master file into temp file
+      cut -d'<' -f2 menu.xml > temp.obh
+      # Read into array
+      readarray -t OBfile < temp.obh
+      rm temp.obh 2>/dev/null
+      # Count records in the array
+      items=${#OBfile[@]}
+      # Add a leading '<' to each line
+      for (( i=0; i < $items; ++i ))
+      do
+         item=${OBfile[${i}]}
+         # Unless it has leading whitespace
+         if [[ ${item:0:1} == " " ]]; then
+            OBfile[${i}]="$item"
+         else
+            OBfile[${i}]="<$item"
+         fi
+      done
+      # ----------- End added 09/10/21 ----------------
       MakeFile                            # Use array to prepare for display
       if [ $? -ne 0 ]; then break; fi     # If error in MakeFile
-      ShowList
-      if [ $? -ne 0 ]; then break; fi    # If error in ShowList
+      ShowList                            # Display simplified list
+      if [ $? -ne 0 ]; then break; fi     # If error in ShowList
    done
    # Check if temp.obh has changed from $XmlPath
-   filecmp=$(cmp $XmlPath check.obh)
+   filecmp=$(cmp $XmlPath temp.obh 2>/dev/null)
    if [[ $filecmp ]]; then
-      yad --text "Your changes have not yet been saved. Save now?" \
+      yad --text-info                     \
+         --text "Your changes have not yet been saved. Save now?" \
          --center --on-top                \
+         --text-align=center              \
          --width=250 --height=100         \
          --buttons-layout=center          \
          --button=gtk-no:1 --button=gtk-yes:0
@@ -61,7 +90,6 @@ function Main() {
          return 0
       fi
       SaveToFile
-      openbox --reconfigure
    fi
    exit 0
 } # End Main
@@ -69,35 +97,49 @@ function Main() {
 function SaveToFile() { # TEST
    yad --text "Ok to save to $XmlPath?" \
       --center --on-top          \
+      --text-align=center        \
       --width=250 --height=100   \
       --buttons-layout=center    \
       --button=gtk-no:1 --button=gtk-yes:0
-      if [ $? -eq 0 ]; then
-         Tidy
-         items=${#OBfile[@]}                    # Count records
-         echo "${OBfile[0]}" > $XmlPath
-         for (( i=1; i < $items; ++i ))
-         do                                     # Rewrite menu.xml from the array
-            echo "${OBfile[${i}]}" >> $XmlPath
-         done
-         # openbox --reconfigure
-      else
-         ShowMessage "Changes not saved."
-      fi
+   if [ $? -eq 0 ]; then
+      rm display.obh 2>/dev/null
+      items=${#OBfile[@]}              # Count records
+      menuLevel=0
+      spaces=""
+      items=${#OBfile[@]}                 # Count records in the array
+      for (( i=0; i < $items; ++i ))
+      do
+         item=${OBfile[${i}]}
+         echo "$spaces$item" >> temp.obh        # Indented
+         itemType=$(echo $item | cut -c2-5)     # Extract type
+         # Prepare the record and add it to temporary file
+         case $itemType in
+         "menu"|"item"|"acti") # Increase indentation
+               menuLevel=$((menuLevel+1))
+               Indentation $menuLevel           # Returns spaces via Gstring
+               spaces="$Gstring"
+            ;;
+         "/men"|"/act"|"exec") # Decrease indentation
+               menuLevel=$((menuLevel-1))
+               Indentation $menuLevel           # Returns spaces via Gstring
+               spaces="$Gstring"
+            ;;
+         *) continue
+         esac
+      done
+      mv temp.obh menu.xml 2>/dev/null
+      openbox --reconfigure
+   else
+      ShowMessage "Changes not saved."
+   fi
 }
 
-function Tidy() {    # Clear temporary files
-   rm display.obh 2>/dev/null
-   cp temp.obh check.obh 2>/dev/null
-   rm temp.obh 2>/dev/null
-   return 0
-} # End Tidy
-
-function ShowMessage() {   # ShowList a message in a pop-up terminal window
-                  # $1 and $2 optional lines of message text
-   yad --text "$1"            \
+function ShowMessage() {   # Display a message in a pop-up window
+                           # $1 and $2 are optional lines of message text
+   yad --text="$1
+   $2"                        \
+   --text-align=center        \
    --center --on-top          \
-   --width=500 --height=200   \
    --buttons-layout=center    \
    --button=gtk-ok
 } # End ShowMessage

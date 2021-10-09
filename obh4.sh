@@ -2,7 +2,7 @@
 
 # obh4.sh - Add records
 
-# OBhelper - A project written in bash to do what obmenu used to do
+# OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 8 October 2021
 # Elizabeth Mills
 
@@ -18,7 +18,7 @@
 
 # Depends: Yad (sudo apt install yad)
 
-function AddMenu()  # TEST
+function AddMenu() # Accept user input, rebuild temp.obh & copy to OBfile
 {  # $1 is the position in the array of the selected item in display.obh
    ArrayElement=$1
    # Display a form to enter menu details ...
@@ -30,16 +30,17 @@ function AddMenu()  # TEST
       --field='Menu Label'             \
       --field='Menu ID'                \
       --text='Enter details (ID must be a number unique to this menu)')
-   if [ $? -eq 1 ]; then return 0; fi           # 'Cancel' was pressed
-   MenuID=$(echo $Gstring | cut -d'|' -f2)      # Extract the menu ID entered
-   CheckMenuID $MenuID                          # Check if number already used
-   if [ $? -ne 0 ]; then                        # Warn user
+   if [ $? -eq 1 ]; then return 0; fi        # 'Cancel' was pressed
+   # Prepare to update OBfile array using temp.obh ...
+   MenuID=$(echo $Gstring | cut -d'|' -f2)   # Extract the menu ID entered
+   CheckMenuID $MenuID                       # Check if number already used
+   if [ $? -ne 0 ]; then                     # Warn user
       ShowMessage "Menu ID already in use." "Please enter a different number."
-      AddMenu                                   # Restart this function
+      AddMenu                                # Restart this function
    fi
-   MenuLabel=$(echo $Gstring | cut -d'|' -f1)   # Extract the label
-   rm temp.obh 2>/dev/null
-   items=${#OBfile[@]}           # Count records in OBfile array
+   MenuLabel=$(echo $Gstring | cut -d'|' -f1) # Extract the label
+   rm temp.obh 2>/dev/null                   # Clear temp.obh for re-use
+   items=${#OBfile[@]}                       # Count records in OBfile array
    # Cycle through OBfile array adding each item to temp.obh
    for (( i=0; i < $items; ++i ))
    do
@@ -51,13 +52,13 @@ function AddMenu()  # TEST
          echo "</action>" >> temp.obh
          echo "</item>" >> temp.obh
          echo "</menu>" >> temp.obh
-         echo "${OBfile[${i}]}" >> temp.obh # And replace the original occupant
+         echo "${OBfile[${i}]}" >> temp.obh # Replace the original after it
       else
          echo "${OBfile[${i}]}" >> temp.obh
       fi
    done
-   # And rebuild the array...
-   readarray -t OBfile < temp.obh    # Read working file into array
+   # And rebuild the array from temp.obh ...
+   readarray -t OBfile < temp.obh
    return 0
 } # End AddMenu
 
@@ -76,8 +77,8 @@ function CheckMenuID()  # Check the array for any other menus with this ID
    done
 } # End CheckMenuID
 
-function AddItem()  # TEST
-{  # $1 is the position in the array of the selected item in display.obh
+function AddItem() # Accept user input, rebuild temp.obh & copy to OBfile
+{  # $1 is the index in the array of the selected item from display.obh
    ArrayElement=$1
    # Display a form to enter menu details ...
    Gstring=$(yad --title='OBhelper'    \
@@ -91,6 +92,7 @@ function AddItem()  # TEST
       --field='Command'                \
       "" "Execute" "")
    if [ $? -eq 1 ]; then return 0; fi           # 'Cancel' was pressed
+   # Prepare temp.obh using OBfile array and variables
    ItemLabel=$(echo $Gstring | cut -d'|' -f1)   # Extract the label
    ItemAction=$(echo $Gstring | cut -d'|' -f3)  # Extract the action
    rm temp.obh 2>/dev/null
@@ -104,7 +106,7 @@ function AddItem()  # TEST
          echo "<execute>$ItemAction</execute>" >> temp.obh
          echo "</action>" >> temp.obh
          echo "</item>" >> temp.obh
-         echo "${OBfile[${i}]}" >> temp.obh # And replace the original occupant
+         echo "${OBfile[${i}]}" >> temp.obh # Replace the original after it
       else
          echo "${OBfile[${i}]}" >> temp.obh
       fi
@@ -114,7 +116,7 @@ function AddItem()  # TEST
    return 0
 } # End AddItem
 
-function AddSeparator() # TEST
+function AddSeparator() # Accept user input, rebuild temp.obh & copy to OBfile
 {  # $1 is the position in the array of the selected item in display.obh
    ArrayElement=$1
    # Display a form to enter menu details ...
@@ -126,6 +128,7 @@ function AddSeparator() # TEST
       --buttons-layout=center          \
       --field='Label')
    if [ $? -eq 1 ]; then return 0; fi           # 'Cancel' was pressed
+   # Prepare temp.obh using OBfile array and variables
    ItemLabel=$(echo $Gstring)                   # Extract the label
    rm temp.obh 2>/dev/null
    items=${#OBfile[@]}                          # Count records in array
@@ -134,7 +137,7 @@ function AddSeparator() # TEST
    do
       if [[ $i -eq $ArrayElement ]]; then # Insert new record at the right place
          echo "<separator label=\"$ItemLabel\"/>" >> temp.obh
-         echo "${OBfile[${i}]}" >> temp.obh # And replace the original occupant
+         echo "${OBfile[${i}]}" >> temp.obh # Replace the original after it
       else
          echo "${OBfile[${i}]}" >> temp.obh
       fi

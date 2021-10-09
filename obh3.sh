@@ -2,7 +2,7 @@
 
 # obh3.sh - Input and output functions
 
-# OBhelper - A project written in bash to do what obmenu used to do
+# OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 8 October 2021
 # Elizabeth Mills
 
@@ -120,13 +120,13 @@ function FormatItem() { # Load, edit and save the record
    Action=$(printf "<action name=\"%s\">" "$item")
    item=$(echo $Gstring | cut -d'|' -f3)
    Execute=$(printf "<execute>%s</execute>" "$item")
-   FormatOutput $OBID
-   pip=$OBID         # Pip related elements
-   OBfile[$pip]="$Gstring$Label"
-   pip=$((pip+1))    # Next element
-   OBfile[$pip]="    $Gstring$Action"
-   pip=$((pip+1))    # Next elephant
-   OBfile[$pip]="        $Gstring$Execute"
+  # FormatOutput $OBID (probably not a good idea
+   advance=$OBID              # First element
+   OBfile[$advance]="$Label"
+   advance=$((advance+1))     # Advance to next related element
+   OBfile[$advance]="$Action"
+   advance=$((advance+1))     # Advance to next related element
+   OBfile[$advance]="$Execute"
    return 0
 } # End FormatItem
 
@@ -177,50 +177,77 @@ function FormatSep() {  # Load, edit and save the separator
    return 0
 } # End FormatSep
 
-function FormatOutput() {  # Try to indent edited records appropriately
-                           # $1 is the selected record number
-   items=${#OBfile[@]}           # Count records in the array
-   menuLevel=0                   # Use menuLevel to manage indenting
+function FormatOutput() {  # Rebuild menu.xml from OBfile array
+   menuLevel=0
    spaces=""
+   items=${#OBfile[@]}     # Count records in the array
    for (( i=0; i < $items; ++i ))
    do
-      if [ $i == $1 ]; then
-         Gstring="$spaces"
-         break
-      fi
-      item="${OBfile[$i]}"        # Read an element from the array
-      item1=$(echo $item | cut -d'<' -f2 | sed -e 's/"//g') # Extract type
-      header=${item1:0:3}
-      case $header in
-      "men") menuLevel=$((menuLevel+1))
-            Indentation $menuLevel
-            spaces="$Gstring"
-            ;;
-      "ite") continue
-            ;;
-      "sep") continue
-            ;;
-      "/me") menuLevel=$((menuLevel-1)) # Special action for end of menu
-            Indentation $menuLevel
-            spaces="$Gstring"
-            ;;
-      *) continue
-      esac
+      item=${OBfile[${i}]}
+   # Extract type
+   itemType=$(echo $item | cut -c2-6 | sed -e 's/"//g')
+Debug "$BASH_SOURCE" "$FUNCNAME" "$LINENO"
+   # Prepare the record and add it to the display file (one line per field)
+   case $header in
+   "men") body=$(echo $item1 | cut -d'=' -f3 | sed -e 's/>//g')
+         echo "$i" >> display.obh               # Index in menu.xml and array
+         echo "$spaces$body" >> display.obh     # Indented
+         echo "menu" >> display.obh
+         echo " " >> display.obh
+         echo " " >> display.obh
+         Gnumber=$((menuLevel+1))
+         Indentation $Gnumber                   # Also sets Gstring to spaces
+         spaces="Gstring"
+      ;;
+   "ite") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/>//g')
+         # For 'item' get the rest of the record
+         j=$((i+1))   # The next line is the action   (remove all '>')
+         action=$(echo ${OBfile[${j}]} | sed -e 's/>//g')
+         # Extract content after first '<'     and remove all quotes
+         action=$(echo $action | cut -d'=' -f2 | sed -e 's/"//g')
+         # Isolate the first word before the first space
+         action=$(echo $action | cut -d' ' -f1)
+         # The next line is the 'execute' command
+         j=$((j+1))
+         execute=$(echo ${OBfile[${j}]})
+         # After '<' (remove all '>')
+         execute=$(echo $execute | cut -d'<' -f2 | cut -d'>' -f2)
+         echo "$i" >> display.obh               # Index in menu.xml and array
+         echo "$spaces$body" >> display.obh     # Indented
+         echo "item" >> display.obh
+         echo "$action" >> display.obh
+         echo "$execute" >> display.obh
+      ;;
+   "sep") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/[/]//')
+         echo "$i" >> display.obh               # Index in menu.xml and array
+         echo "$spaces$body" >> display.obh     # Indented
+         echo "separator" >> display.obh
+         echo " " >> display.obh
+         echo " " >> display.obh
+      ;;
+   "/me")
+         Gnumber=$((menuLevel-1))               # Special action for end of menu
+         Indentation $Gnumber                   # Also sets Gstring to spaces
+      ;;
+   *) return 1
+   esac
    done
+
+   return 0
 } # End FormatOutput
 
-function EditObject() { # Choose action based on type of object TEST
-               # $1 is selected object ID number
-   OBID=$1
-   item="$(echo ${OBfile[$OBID]} | cut -d'<' -f2 | cut -c1-4)"
+function EditObject() { # Choose action based on type of object
+                        # $1 is selected object's index in the array
+   item="$(echo ${OBfile[${1}]} | cut -d'<' -f2 | cut -c1-4)"
    case $item in
-   "menu") FormatMenu $OBID  #<menu id="root-menu-885940" label="Stumped Game">
+   "menu") FormatMenu $1  # Load menu fields, edit and save
    ;;
-   "item") FormatItem $OBID  # Format and save
+   "item") FormatItem $1  # Load item fields, edit and save
    ;;
-   "sepa") FormatSep $OBID   # Prepare data for separator
+   "sepa") FormatSep $1   # Load separator fields, edit and save
    ;;
-   *) return 1  # Data error
+   *) return 1            # Data error
    esac
+   # Update temp.obh
    return 0
 } # End EditObject

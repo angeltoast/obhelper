@@ -2,7 +2,7 @@
 
 # obh6.sh - Delete records
 
-# OBhelper - A project written in bash to do what obmenu used to do
+# OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 8 October 2021
 # Elizabeth Mills
 
@@ -18,19 +18,21 @@
 
 # Depends: Yad (sudo apt install yad)
 
-function DeleteObject()  # TEST
+function DeleteObject()  # More TESTing needed
 {  # $1 is the index in the array of the selected item in display.obh
    ArrayElement=$1
+   StartNumber=$ArrayElement
+   EndNumber=$ArrayElement
    Item=${OBfile[${ArrayElement}]}                 # Find in array
-   ItemType=$(echo $Item | cut -c5 | cut -d'<' -f2)
-   ItemLabel="$(echo $Item | cut -d'=' -f3 | sed -e 's/[">]//g')"
+   ItemType=$(echo $Item | cut -c1-5 | cut -d'<' -f2)
    items=${#OBfile[@]}                             # Count records in the array
 
    case $ItemType in
-   "menu") StartNumber=$ArrayElement
-         EndNumber=$ArrayElement
+   "menu")
+      ItemLabel="$(echo $Item | cut -d'=' -f3 | sed -e 's/[">]//g')"
       menuLevel=0                      # Use menuLevel to manage indenting, and
       spaces=""                        # to detect menu opening and closing tags
+      rm display.obh 2>/dev/null
       for (( i=$((StartNumber+1)); i < $items; ++i ))
       do # Display from the record after the selected menu header
          recordType=$(echo ${OBfile[${i}]} | cut -d'<' -f2 | cut -d' ' -f1)
@@ -54,7 +56,9 @@ function DeleteObject()  # TEST
          return 0
       ;;
       1) # Delete all
-         yad --text "Delete the $ItemLabel menu and contents? Are you sure" \
+         yad --text "Delete the $ItemLabel menu and contents?
+                        Are you sure"  \
+            --text-align=center        \
             --center --on-top          \
             --width=250 --height=100   \
             --buttons-layout=center    \
@@ -64,7 +68,7 @@ function DeleteObject()  # TEST
             return 1
          fi
          rm temp.obh 2>/dev/null
-         # The loop will not save any records from the start to the finish
+         # The loop will not save any records from menu start to menu finish
          for (( i=0; i < $items; ++i ))
          do # Start at top of array, ignoring all from menu start to end
             if [ $i -ge $StartNumber ] && [ $i -le $EndNumber ]; then
@@ -75,7 +79,9 @@ function DeleteObject()  # TEST
          done
       ;;
       2) # Delete the opening and closing tags only
-         yad --text "Delete the $ItemLabel menu, leaving the contents? Are you sure" \
+         yad --text "Delete the $ItemLabel menu, leaving the contents?
+                        Are you sure"  \
+            --text-align=center        \
             --center --on-top          \
             --width=250 --height=100   \
             --buttons-layout=center    \
@@ -85,7 +91,7 @@ function DeleteObject()  # TEST
             return 1
          fi
          rm temp.obh 2>/dev/null
-         # The loop will copy all records between the start and finish
+         # The loop will copy all records after menu start up to finish
          for (( i=0; i < $items; ++i ))
          do # Start at top of array
             if [ $i -eq $StartNumber ] || [ $i -eq $EndNumber ]; then
@@ -98,7 +104,10 @@ function DeleteObject()  # TEST
       *) return 3
       esac
       ;;
-   "item") yad --text "Are you sure you want to delete $ItemLabel?" \
+   "item") ItemLabel="$(echo $Item | cut -d'=' -f2 | sed -e 's/[">]//g')"
+      yad --text "Are you sure you want to delete
+                  the '$ItemLabel' item?"   \
+         --text-align=center        \
          --center --on-top          \
          --width=250 --height=100   \
          --buttons-layout=center    \
@@ -108,8 +117,8 @@ function DeleteObject()  # TEST
          return 1
       fi
       rm temp.obh 2>/dev/null
-      # Save all until StartNumber, then ignore all until
-      # the first </item> is encountered
+      # Save all until StartNumber, then ignore all until the first </item>
+      #                                                      is encountered
       for (( i=0; i < $items; ++i ))
       do # Start at top of array, ignoring all from menu start to end
          FindEnd=$(echo ${OBfile[${i}]} | cut -c1-6)  # </item
@@ -123,11 +132,14 @@ function DeleteObject()  # TEST
          fi
       done
       ;;
-   "sepa") yad --text "Are you sure you want to delete $ItemLabel?" \
-      --center --on-top          \
-      --width=250 --height=100   \
-      --buttons-layout=center    \
-      --button=gtk-no:1 --button=gtk-yes:0
+   "sepa") ItemLabel="$(echo $Item | cut -d'=' -f2 | sed -e 's/[">/]//g')"
+      yad --text "Are you sure you want to delete
+                  the '$ItemLabel' separator?"   \
+         --text-align=center        \
+         --center --on-top          \
+         --width=250 --height=100   \
+         --buttons-layout=center    \
+         --button=gtk-no:1 --button=gtk-yes:0
       if [ $? -ne 0 ]; then
          ShowMessage "$ItemLabel not deleted."
          return 1

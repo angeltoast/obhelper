@@ -2,7 +2,7 @@
 
 # obh.sh - Move up and move down
 
-# OBhelper - A project written in bash to do what obmenu used to do
+# OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 8 October 2021
 # Elizabeth Mills
 

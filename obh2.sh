@@ -2,7 +2,7 @@
 
 # obh2.sh - Preparation functions
 
-# OBhelper - A project written in bash to do what obmenu used to do
+# OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 8 October 2021
 # Elizabeth Mills
 
@@ -16,15 +16,16 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-function MakeFile() {      # Prepare the display file
+function MakeFile() {  # Use OBfile array to prepare the display file
    # Note: The display file excludes the XML declaration and the opening
    # "<openbox_menu>" and closing "</openbox_menu>" tags, as well as all
    # other closing tags (</menu> </item> </action>)
    # But those items are all in the OBfile array for consistency with menu.xml
    rm display.obh 2>/dev/null
-   items=${#OBfile[@]}     # Count records in the OBfile array copy of menu.xml
-   menuLevel=0             # To manage indenting
-   spaces=""               # Also for indenting
+   items=${#OBfile[@]}              # Count records in OBfile array
+   menuLevel=0                      # To manage indenting
+   spaces=""                        # Also for indenting
+   echo "Preparing data for display"
    for (( i=0; i < $items; ++i ))
    do
       # Read an element from the array and send it for formatting
@@ -37,7 +38,7 @@ function MakeFile() {      # Prepare the display file
    return 0
 } # End MakeFile
 
-function FormatRecordForDisplay()   # Prepares and adds record to temp.obh
+function FormatRecordForDisplay() # Prepares and adds record to display.obh
 {  # $1 = the whole record from the array; $2 = menuLevel; $3 = spaces
    # Sets Gstring to $spaces and Gnumber to $menuLevel
    menuLevel=$2
