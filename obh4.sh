@@ -16,13 +16,13 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-# Depends: Yad (sudo apt install yad)
+# Depends: Yad (sudo apt install $Dialog)
 
-function AddMenu() # Accept user input, rebuild temp.obh & copy to OBfile
+function AddMenu # Accept user input, rebuild temp.obh & copy to OBfile
 {  # $1 is the position in the array of the selected item in display.obh
    ArrayElement=$1
    # Display a form to enter menu details ...
-   Gstring=$(yad --title='OBhelper'    \
+   Gstring=$($Dialog --title='OBhelper'    \
       --form --center --on-top         \
       --width=500 --height=200         \
       --text-align=center              \
@@ -62,7 +62,7 @@ function AddMenu() # Accept user input, rebuild temp.obh & copy to OBfile
    return 0
 } # End AddMenu
 
-function CheckMenuID()  # Check the array for any other menus with this ID
+function CheckMenuID  # Check the array for any other menus with this ID
 {
    MenuID=$1
    OBID=$2
@@ -77,11 +77,11 @@ function CheckMenuID()  # Check the array for any other menus with this ID
    done
 } # End CheckMenuID
 
-function AddItem() # Accept user input, rebuild temp.obh & copy to OBfile
+function AddItem # Accept user input, rebuild temp.obh & copy to OBfile
 {  # $1 is the index in the array of the selected item from display.obh
    ArrayElement=$1
    # Display a form to enter menu details ...
-   Gstring=$(yad --title='OBhelper'    \
+   Gstring=$($Dialog --title='OBhelper'    \
       --form --center --on-top         \
       --width=500 --height=200         \
       --text='Enter item details'      \
@@ -116,11 +116,11 @@ function AddItem() # Accept user input, rebuild temp.obh & copy to OBfile
    return 0
 } # End AddItem
 
-function AddSeparator() # Accept user input, rebuild temp.obh & copy to OBfile
+function AddSeparator # Accept user input, rebuild temp.obh & copy to OBfile
 {  # $1 is the position in the array of the selected item in display.obh
    ArrayElement=$1
    # Display a form to enter menu details ...
-   Gstring=$(yad --title='OBhelper'    \
+   Gstring=$($Dialog --title='OBhelper'    \
       --form --center --on-top         \
       --width=500 --height=200         \
       --text='Enter separator label'   \

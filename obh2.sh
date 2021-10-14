@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# obh2.sh - Preparation functions
+# obh2.sh - File preparation functions
 
 # OBhelper - An application to help manage the Openbox static menu
 # Started: 29 August 2021         Updated: 8 October 2021
@@ -16,7 +16,7 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-function MakeFile() {  # Use OBfile array to prepare the display file
+function MakeFile {  # Use OBfile array to prepare the display file
    # Note: The display file excludes the XML declaration and the opening
    # "<openbox_menu>" and closing "</openbox_menu>" tags, as well as all
    # other closing tags (</menu> </item> </action>)
@@ -25,7 +25,6 @@ function MakeFile() {  # Use OBfile array to prepare the display file
    items=${#OBfile[@]}              # Count records in OBfile array
    menuLevel=0                      # To manage indenting
    spaces=""                        # Also for indenting
-   echo "Preparing data for display"
    for (( i=0; i < $items; ++i ))
    do
       # Read an element from the array and send it for formatting
@@ -38,63 +37,39 @@ function MakeFile() {  # Use OBfile array to prepare the display file
    return 0
 } # End MakeFile
 
-function FormatRecordForDisplay() # Prepares and adds record to display.obh
+function FormatRecordForDisplay # Prepares and adds record to display.obh
 {  # $1 = the whole record from the array; $2 = menuLevel; $3 = spaces
    # Sets Gstring to $spaces and Gnumber to $menuLevel
    menuLevel=$2
    spaces=$3
-   # start by removing all '>'
-   item=$(echo $1 | sed -e 's/>//g')
-   # Extract content after the first '<' and remove quotes
-   item1=$(echo $item | cut -d'<' -f2 | sed -e 's/"//g')
-   header=${item1:0:3}
+   # start by removing all '>' extract content after the first '<' and remove quotes
+   Item=$(echo $1 | sed -e 's/>//g' | cut -d'<' -f2 | sed -e 's/"//g')
+   Type=${Item:0:4}
    # Prepare the record and add it to the display file (one line per field)
-   case $header in
-   "men") body=$(echo $item1 | cut -d'=' -f3 | sed -e 's/>//g')
-         echo "$i" >> display.obh               # Index in menu.xml and array
-         echo "$spaces$body" >> display.obh     # Indented
-         echo "menu" >> display.obh
-         echo " " >> display.obh
-         echo " " >> display.obh
+   case $Type in
+   "menu") body=$(echo $Item | cut -d'=' -f3 | sed -e 's/>//g')
+         echo -e "$i\n$spaces$body\nmenu\n\n" >> display.obh
          Gnumber=$((menuLevel+1))
-         Indentation $Gnumber                   # Also sets Gstring to spaces
+         Indentation $Gnumber             # Sets Gstring to spaces
       ;;
-   "ite") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/>//g')
-         # For 'item' get the rest of the record
-         j=$((i+1))   # The next line is the action   (remove all '>')
-         action=$(echo ${OBfile[${j}]} | sed -e 's/>//g')
-         # Extract content after first '<'     and remove all quotes
-         action=$(echo $action | cut -d'=' -f2 | sed -e 's/"//g')
-         # Isolate the first word before the first space
-         action=$(echo $action | cut -d' ' -f1)
-         # The next line is the 'execute' command
-         j=$((j+1))
-         execute=$(echo ${OBfile[${j}]})
-         # After '<' (remove all '>')
-         execute=$(echo $execute | cut -d'<' -f2 | cut -d'>' -f2)
-         echo "$i" >> display.obh               # Index in menu.xml and array
-         echo "$spaces$body" >> display.obh     # Indented
-         echo "item" >> display.obh
-         echo "$action" >> display.obh
-         echo "$execute" >> display.obh
+   "item") body=$(echo $Item | cut -d'=' -f2 | sed -e 's/>//g')
+         j=$((i+2))                       # Grab the 'execute' command
+         execute=$(echo ${OBfile[${j}]} | cut -d'<' -f2 | cut -d'>' -f2)
+         echo -e "$i\n$spaces$body\nitem\nexecute\n$execute" >> display.obh
       ;;
-   "sep") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/[/]//')
-         echo "$i" >> display.obh               # Index in menu.xml and array
-         echo "$spaces$body" >> display.obh     # Indented
-         echo "separator" >> display.obh
-         echo " " >> display.obh
-         echo " " >> display.obh
+   "sepa") body=$(echo $Item | cut -d'=' -f2 | sed -e 's/[/]//')
+         echo -e "$i\n$spaces$body\nseparator\n\n" >> display.obh
       ;;
-   "/me")
-         Gnumber=$((menuLevel-1))               # Special action for end of menu
-         Indentation $Gnumber                   # Also sets Gstring to spaces
+   "/men")
+         Gnumber=$((menuLevel-1))         # Special action for end of menu
+         Indentation $Gnumber             # Sets Gstring to spaces
       ;;
    *) return 1
    esac
    return 0
 } # End FormatRecordForDisplay
 
-function Indentation() {   # Indentation according to menu level
+function Indentation { # Indentation according to menu level
    case $1 in
    0) Gstring="" ;;
    1) Gstring="      " ;;
@@ -106,3 +81,39 @@ function Indentation() {   # Indentation according to menu level
    esac
    return 0
 } # End Indentation
+
+function RebuildMenuDotXml { # Rebuild menu.xml from OBfile array
+   menuLevel=0
+   spaces=""
+   items=${#OBfile[@]}                    # Count records in the array
+   for (( i=0; i < $items; ++i ))
+   do
+      item=${OBfile[${i}]}
+      # Extract type
+      Type=${item:2:4}
+      # Prepare the record and add it to the display file (one line per field)
+      case $Type in
+      "menu") body=$(echo $item1 | cut -d'=' -f3 | sed -e 's/>//g')
+            echo -e "$i\n$spaces$body\nmenu\n\n" >> menu.xml
+            Gnumber=$((menuLevel+1))
+            Indentation $Gnumber          # Sets Gstring to spaces
+            spaces="Gstring"
+         ;;
+      "item") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/>//g')
+            j=$((i+2))                    # Grab the 'execute' command
+            execute=$(echo ${OBfile[${j}]} | cut -d'<' -f2 | cut -d'>' -f2)
+            echo -e "$i\n$spaces$body\nitem\nexecute\n$execute" >> menu.xml
+         ;;
+      "sepa") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/[/]//')
+            echo -e "$i\n$spaces$body\nseparator\n\n" >> menu.xml
+         ;;
+      "/men")
+            Gnumber=$((menuLevel-1))      # Special action for end of menu
+            Indentation $Gnumber          # Sets Gstring to spaces
+         ;;
+      *) continue
+      esac
+   done
+   cp menu.xml temp.obh                   # Maintain parity
+   return 0
+} # End RebuildMenuDotXml

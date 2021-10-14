@@ -16,15 +16,15 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-# Depends: Yad (sudo apt install yad)
+# Depends: Yad (sudo apt install $Dialog)
 
-function DeleteObject()  # More TESTing needed
+function DeleteObject  # More TESTing needed
 {  # $1 is the index in the array of the selected item in display.obh
    ArrayElement=$1
    StartNumber=$ArrayElement
    EndNumber=$ArrayElement
    Item=${OBfile[${ArrayElement}]}                 # Find in array
-   ItemType=$(echo $Item | cut -c1-5 | cut -d'<' -f2)
+   ItemType=${Item:1:4}
    items=${#OBfile[@]}                             # Count records in the array
 
    case $ItemType in
@@ -34,9 +34,10 @@ function DeleteObject()  # More TESTing needed
       spaces=""                        # to detect menu opening and closing tags
       rm display.obh 2>/dev/null
       for (( i=$((StartNumber+1)); i < $items; ++i ))
-      do # Display from the record after the selected menu header
-         recordType=$(echo ${OBfile[${i}]} | cut -d'<' -f2 | cut -d' ' -f1)
-         executeType=${recordType:0:7}    # Looking for the matching closing tag
+      do # Display from the record after the selected menu header ItemType=${Item:1:6}
+         ThisRecord=${OBfile[${i}]}
+         recordType=${ThisRecord:1:6}
+         # Looking for the matching closing tag
          if [ $recordType == "/menu>" ] && [ $menuLevel -eq 0 ]; then
             EndNumber=$i   # This is the matching </menu> tag, so save the number
             break          # ... and exit the loop
@@ -56,7 +57,7 @@ function DeleteObject()  # More TESTing needed
          return 0
       ;;
       1) # Delete all
-         yad --text "Delete the $ItemLabel menu and contents?
+         $Dialog --text "Delete the $ItemLabel menu and contents?
                         Are you sure"  \
             --text-align=center        \
             --center --on-top          \
@@ -79,7 +80,7 @@ function DeleteObject()  # More TESTing needed
          done
       ;;
       2) # Delete the opening and closing tags only
-         yad --text "Delete the $ItemLabel menu, leaving the contents?
+         $Dialog --text "Delete the $ItemLabel menu, leaving the contents?
                         Are you sure"  \
             --text-align=center        \
             --center --on-top          \
@@ -105,7 +106,7 @@ function DeleteObject()  # More TESTing needed
       esac
       ;;
    "item") ItemLabel="$(echo $Item | cut -d'=' -f2 | sed -e 's/[">]//g')"
-      yad --text "Are you sure you want to delete
+      $Dialog --text "Are you sure you want to delete
                   the '$ItemLabel' item?"   \
          --text-align=center        \
          --center --on-top          \
@@ -133,7 +134,7 @@ function DeleteObject()  # More TESTing needed
       done
       ;;
    "sepa") ItemLabel="$(echo $Item | cut -d'=' -f2 | sed -e 's/[">/]//g')"
-      yad --text "Are you sure you want to delete
+      $Dialog --text "Are you sure you want to delete
                   the '$ItemLabel' separator?"   \
          --text-align=center        \
          --center --on-top          \
@@ -161,9 +162,9 @@ function DeleteObject()  # More TESTing needed
    return 0
 } # End DeleteObject
 
-function ShortList() # Display the selected items in a listbox # TEST
+function ShortList # Display the selected items in a listbox # TEST
 {  # Items are only displayed for information. They are not selectable.
-   cat display.obh | yad --list       \
+   cat display.obh | $Dialog --list       \
       --center --width=750 --height=300       \
       --text="The menu contains the following items. Do you wish to delete them all, or just the menu header?"          \
       --text-align=center        \

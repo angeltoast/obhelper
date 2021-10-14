@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# obh.sh - Main module
+# obh.sh - Main module (preparation and system initiation)
 
 # OBhelper - An application to help manage the Openbox static menu
-# Started: 29 August 2021         Updated: 6 October 2021
+# Started: 29 August 2021         Updated: 14th October 2021
 # Elizabeth Mills
 
 # This program is distributed in the hope that it will be useful, but
@@ -16,7 +16,7 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-# Depends: Yad (sudo apt install yad)
+# Depends: Yad or Zenity (sudo apt install yad)
 
 # Additional functions
 source obh2.sh
@@ -31,55 +31,56 @@ Gstring=""           # For returning strings from functions
 declare -a OBfile    # Array to hold a copy of the entire menu.xml file
 
 # Data files
-# menu.xml  -  The Openbox static menu configuration file
-# temp.obh  -  Used during session to update OBfile array
+# menu.xml     -  The Openbox static menu configuration file
+# temp.obh     -  Used during session to update OBfile array
+# display.obh  -  Data from menu.xml in simpler format for user information
 
-if [ !$1 ]; then     # Paths for testing and use
+if command -v yad >/dev/null 2>&1; then
+   Dialog="yad"
+elif command -v $Dialog >/dev/null 2>&1; then
+   Dialog="zenity"
+else
+   echo "OBhelper needs either Yad or Zenity to display results."
+   echo "Please use your system's software management application"
+   echo "to install Yad or Zenity. OBhelper will now exit."
+   read -p "Please press [Enter]"
+   exit
+fi
+
+if [ !$1 ]; then                       # Paths for testing and standard use
    # XmlPath="/home/$USER/.config/openbox/menu.xml"
    XmlPath="menu.xml"
-else
+else                                   # May be passed as argument
    XmlPath=$1
 fi
 
-function Main() {
-   if [[ ! -f check.obh ]]; then # Only display on first use
-   ShowMessage "Welcome to OBhelper, the graphical assistant for managing your Openbox static menu configuration file." "Please note that changes you make during the session will not become permanent until you choose the 'Save' option."
-   fi
-   cp $XmlPath check.obh                  # For comparison on exit
+function Main {
+   cp $XmlPath check.obh               # For comparison on exit
+   # Load menu.xml into the array
+   i=0
+   while read line
+   do
+      OBfile[${i}]=$line
+      i=$((i+1))
+   done < menu.xml
+   # Then begin main loop
    while true
    do
-     # readarray -t OBfile < $XmlPath      # Read master file into array
-      # ------------------ Added 09/10/21 --------------
-      rm temp.obh 2>/dev/null
-      # Trim records from master file into temp file
-      cut -d'<' -f2 menu.xml > temp.obh
-      # Read into array
-      readarray -t OBfile < temp.obh
-      rm temp.obh 2>/dev/null
-      # Count records in the array
-      items=${#OBfile[@]}
-      # Add a leading '<' to each line
-      for (( i=0; i < $items; ++i ))
-      do
-         item=${OBfile[${i}]}
-         # Unless it has leading whitespace
-         if [[ ${item:0:1} == " " ]]; then
-            OBfile[${i}]="$item"
-         else
-            OBfile[${i}]="<$item"
-         fi
-      done
-      # ----------- End added 09/10/21 ----------------
       MakeFile                            # Use array to prepare for display
-      if [ $? -ne 0 ]; then break; fi     # If error in MakeFile
+      if [ $? -ne 0 ]; then break; fi     # If error or exit in MakeFile
       ShowList                            # Display simplified list
-      if [ $? -ne 0 ]; then break; fi     # If error in ShowList
+      if [ $? -ne 0 ]; then break; fi     # If error or exit in ShowList
    done
    # Check if temp.obh has changed from $XmlPath
-   filecmp=$(cmp $XmlPath temp.obh 2>/dev/null)
+   CompareFiles
+   exit 0
+} # End Main
+
+function CompareFiles   # Check if temp.obh has changed from $XmlPath
+{
+   filecmp=$(cmp $XmlPath check.obh 2>/dev/null)
    if [[ $filecmp ]]; then
-      yad --text-info                     \
-         --text "Your changes have not yet been saved. Save now?" \
+      $Dialog --text "Your changes have not yet been saved. Save now?" \
          --center --on-top                \
          --text-align=center              \
          --width=250 --height=100         \
@@ -89,65 +90,28 @@ function Main() {
          ShowMessage "$XmlPath not updated."
          return 0
       fi
-      SaveToFile
+      RebuildMenuDotXml
    fi
-   exit 0
-} # End Main
-
-function SaveToFile() { # TEST
-   yad --text "Ok to save to $XmlPath?" \
-      --center --on-top          \
-      --text-align=center        \
-      --width=250 --height=100   \
-      --buttons-layout=center    \
-      --button=gtk-no:1 --button=gtk-yes:0
-   if [ $? -eq 0 ]; then
-      rm display.obh 2>/dev/null
-      items=${#OBfile[@]}              # Count records
-      menuLevel=0
-      spaces=""
-      items=${#OBfile[@]}                 # Count records in the array
-      for (( i=0; i < $items; ++i ))
-      do
-         item=${OBfile[${i}]}
-         echo "$spaces$item" >> temp.obh        # Indented
-         itemType=$(echo $item | cut -c2-5)     # Extract type
-         # Prepare the record and add it to temporary file
-         case $itemType in
-         "menu"|"item"|"acti") # Increase indentation
-               menuLevel=$((menuLevel+1))
-               Indentation $menuLevel           # Returns spaces via Gstring
-               spaces="$Gstring"
-            ;;
-         "/men"|"/act"|"exec") # Decrease indentation
-               menuLevel=$((menuLevel-1))
-               Indentation $menuLevel           # Returns spaces via Gstring
-               spaces="$Gstring"
-            ;;
-         *) continue
-         esac
-      done
-      mv temp.obh menu.xml 2>/dev/null
-      openbox --reconfigure
-   else
-      ShowMessage "Changes not saved."
-   fi
+   rm check.obh
+   return 0
 }
-
-function ShowMessage() {   # Display a message in a pop-up window
-                           # $1 and $2 are optional lines of message text
-   yad --text="$1
+function ShowMessage {   # Display a message in a pop-up window
+   # $1 and $2 are optional lines of message text
+   $Dialog --text="$1
    $2"                        \
    --text-align=center        \
+   --width=250 --height=100   \
    --center --on-top          \
    --buttons-layout=center    \
    --button=gtk-ok
 } # End ShowMessage
 
-function Debug() {   # Insert at any point ...
+function Debug {   # Insert at any point ...
+      # set -xv
       # echo " any variables "
       # Debug "$BASH_SOURCE" "$FUNCNAME" "$LINENO"
    read -p "In file: $1, function:$2, at line:$3"
+   set +xv
    return 0
 } # End Debug
 
