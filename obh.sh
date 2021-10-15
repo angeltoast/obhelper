@@ -37,12 +37,10 @@ declare -a OBfile    # Array to hold a copy of the entire menu.xml file
 
 if command -v yad >/dev/null 2>&1; then
    Dialog="yad"
-elif command -v $Dialog >/dev/null 2>&1; then
-   Dialog="zenity"
 else
-   echo "OBhelper needs either Yad or Zenity to display results."
+   echo "OBhelper needs Yad to display results."
    echo "Please use your system's software management application"
-   echo "to install Yad or Zenity. OBhelper will now exit."
+   echo "to install Yad. OBhelper will now exit."
    read -p "Please press [Enter]"
    exit
 fi
