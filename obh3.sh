@@ -188,3 +188,14 @@ function EditObject { # Choose action based on type of object
    # Update temp.obh
    return 0
 } # End EditObject
+
+function ShowMessage {   # Display a message in a pop-up window
+   # $1 and $2 are optional lines of message text
+   $Dialog --text="$1
+   $2"                        \
+   --text-align=center        \
+   --width=250 --height=100   \
+   --center --on-top          \
+   --buttons-layout=center    \
+   --button=gtk-ok
+} # End ShowMessage

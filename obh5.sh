@@ -16,167 +16,178 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-function MoveUp # Finds the landing index point for the selected item
-{  # Then calls RebuildArray to process the move via temporary file temp.obh
-   MovingObject=$1 # Index of selected object's 1st element in array
-   MovingObjectType=${OBfile[${MovingObject}]:1:4}
-   items=${#OBfile[@]}   # Count records in the array
-   if [ $MovingObject -lt 3 ]; then
+function MoveUp # Check that the move is valid before calling
+{               # the PrepareNewLayout function to process the move
+   MovingObjectIndex=$1 # Index of selected object's first element in the array
+   MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
+   if [ $MovingObjectIndex -lt 3 ]; then
       ShowMessage "Objects cannot move out of Openbox menu"
       return 1
    fi
-   # First find a landing point that is on top of the object above...
-   LandingPoint=$((MovingObject-1))  # Start one line above the moving object
-
-   while true
-   do
-      Item=${OBfile[${LandingPoint}]}           # Load previous line
-      ItemType=${Item:1:4}                      # Check its type
-      # If MovingObjectType is separator ItemType must be <menu or <item
-      if [ $MovingObjectType == "sepa" ] && [ $ItemType != "menu" ] && [ $ItemType != "item" ] && [ $ItemType != "sepa" ]; then           # ie: not the top of an object)
-         LandingPoint=$((LandingPoint-1))   # ... keep going.
-      else                                  # All other situations
-         case $ItemType in
-         "sepa"|"item"|"menu"|"/men") break ;;
-         *) LandingPoint=$((LandingPoint-1))
-         esac
-      fi
-   done
-   # Now build temp.obh from the top of the array, then update the array
-   RebuildArray $MovingObject $LandingPoint "Up"
-
+   PrepareNewLayout $MovingObjectIndex "Up" # Process the move
    return 0
 } # End MoveUp
 
-function MoveDown # Finds the landing index point for the selected item
-{  # Then calls RebuildArray to process the move via temporary file temp.obh
-   MovingObject=$1 # Index of selected object's 1st element in array
-   MovingObjectType=${OBfile[${MovingObject}]:1:4}
-   items=${#OBfile[@]}   # Count records in the array
-   if [ $MovingObject -eq $items ]; then
+function MoveDown # Check that the move is valid before calling
+{                 # the PrepareNewLayout function to process the move
+   MovingObjectIndex=$1 # Index of selected object's 1st element in array
+   MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
+   items=${#OBfile[@]} # Count records in the array
+   if [ $MovingObjectIndex -eq $items ]; then
       ShowMessage "Objects cannot move out of the Openbox menu"
       return 1
    fi
-
-   # Find the end index of the moving object
-   if [ $MovingObjectType == "sepa" ]; then  # If moving object is separator,
-      EndIndex=$MovingObject                 # end index is the same as start
-   else
-      FindEndIndex $MovingObject             # Returns last line of object
-      EndIndex=$?
-   fi
-   StartStaticObject=$EndIndex               # Start of the 'static' object
-   FindEndIndex $StartStaticObject           # Returns last line of it
-   LandingPoint=$?                           # This is used for RebuildArray
-   # Now build temp.obh from the top of the array, then update the array
-   RebuildArray $MovingObject $LandingPoint "Down"
+   PrepareNewLayout $MovingObjectIndex "Down" # Process the move
    return 0
 } # End MoveDown
 
-function RebuildArray { # Calls functions to rebuild the array
-   local MovingObject=$1      # Index of the moving object
-   local LandingPoint=$2      # Index of its new placement
-   local Direction=$3         # "Up" or "Down"
-   local EndIndex=0           # Current location of the last line of the object
-
-   MovingObjectRecord=${OBfile[${MovingObject}]}   # Header of the moving object
-   MovingObjectType=${MovingObjectRecord:1:4}      # ... save its type
+function PrepareNewLayout  # Save objects at new locations in temporary file
+{  MovingObjectIndex=$1    # First element of the moving object
+   Direction=$2            # Moving Up or Moving Down
+# First establish the type of the moving object ...
+   MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
+   # and the index of its last element ...
+   if [ $MovingObjectType == "sepa" ]; then  # If moving object is separator,
+      EndIndex=$MovingObjectIndex            # Only one line
+   elif [ $MovingObjectType == "menu" ]||[ $MovingObjectType == "item" ]; then
+      # The only other valid types
+      FindEndIndex $MovingObjectIndex        # Returns last line of moving object
+      EndIndex=$?
+   else
+      ShowMessage "Invalid record type being moved"
+      return 1
+   fi
+# Use start and end indices of the objects to establish new positions
+   if [ $Direction == "Up" ]; then  # Check each preceeding element to find
+      FindStartIndex $((MovingObjectIndex-1))
+      StaticObjectIndex=$? # Current start of the static object is here
+      FindEndIndex $StaticObjectIndex        # Returns last line of static object
+      EndStaticObject=$?
+      LandingPoint=$StaticObjectIndex    # The moving object will land here
+      # Calculate the length of the moving object and add to landing point,
+      # and the new start of the static object will be after the moving object
+      StartStaticObject=$((EndIndex-MovingObjectIndex+LandingPoint+1))
+   elif [ $Direction == "Down" ]; then   # Static object will precede moving
+      # object, so the current start of the moving object will be the new
+      StartStaticObject=$MovingObjectIndex # starting point for the static object
+      FindEndIndex $MovingObjectIndex  # Find last element of the moving object
+      StaticObjectIndex=$?             # Bottom of the moving object
+      StaticObjectIndex=$((StaticObjectIndex+1)) # First index below it
+      FindEndIndex $StaticObjectIndex  # Find the bottom of the static object
+      EndStaticObject=$?               # The landing point for the moving
+      # object will be its old index plus the length of the static object...
+      LandingPoint=$((EndStaticObject-StaticObjectIndex+MovingObjectIndex+1))
+   else
+      ShowMessage "Invalid value passed to function"
+      return 1
+   fi
+   # $LandingPoint is where the moving object will land
+   # $StartStaticObject is where the static object will land
    rm temp.obh 2>/dev/null                         # Clear the workfile
    items=${#OBfile[@]}                             # Count array contents
-
-   # 1) Find the endpoint of the selected object
-   FindEndIndex $MovingObject                      # Get EndIndex
-   EndIndex=$?
-   # 2) Copy each element of the array to (new) locations in the temporary file
-   PrepareNewLayout $MovingObject $LandingPoint $Direction
-   # 3) Finally copy new temp.obh back into the array
+# Begin processing the records
+   for (( x=0; x<items; ++x ))
+   do
+      if [ $x -eq $LandingPoint ]; then         # The moving object
+         SaveAnObject $MovingObjectIndex
+         if [ $? -eq $MovingObjectIndex ]; then
+            return 1
+         else
+            x=$((x+EndIndex-MovingObjectIndex))
+         fi
+      elif [ $x -eq $StartStaticObject ]; then  # The static object
+         SaveAnObject $((StaticObjectIndex))
+         if [ $? -eq $StaticObjectIndex ]; then
+            return 1
+         else
+            x=$((x+EndStaticObject-StaticObjectIndex))
+         fi
+      else
+         echo ${OBfile[${x}]} >> temp.obh       # All other records
+      fi
+   done
+# Rebuild the array from the temp file
    readarray -t OBfile < temp.obh
+} # End PrepareNewLayout
 
-   return 0
-} # End RebuildArray
+function FindStartIndex # Find the start point of an object
+{
+   local TailIndex=$1
+   local TailTag=${OBfile[${TailIndex}]:1:5} # </menu, </item, or <separ
+   case $TailTag in
+   "separ") # Separators are the simplest of all, being a single line
+      return $((TailIndex))
+      ;;
+   "/item") # Items are simple enough, always having 5 elements ...
+         # 1.<item, 2.<action, 3.<execute, 4.</action, 5.</item
+       return $((TailIndex-4))
+      ;;
+   "/menu") # Menus are more complex, containing one or more other types
+      menuLevel=1       # Ensure that closing tag belongs to this object
+      j=$TailIndex      # Start counting back from the tail element
+      for ((j;j>0;--j))
+      do
+         MenuComponentType=${OBfile[${j}]:1:5}  # Looking for menu or /menu
+         # Break the loop when it reaches the matching opening menu tag
+         if [ "$MenuComponentType" == "menu " ] && [ $menuLevel -eq 0 ]; then
+            return $j
+         elif [ "$MenuComponentType" == "menu " ]; then # Exit a contained menu
+            menuLevel=$((menuLevel+1))
+         elif [ "$MenuComponentType" == "/menu" ]; then # Enter a contained menu
+            menuLevel=$((menuLevel-1))
+         fi
+      done
+      Debug "$BASH_SOURCE" "$FUNCNAME" "$LINENO"
+   esac
+   return $ObjectIndex     # Error returns the calling argument
+} # End FindStartIndex
 
-function FindEndIndex # Find the endpoint of the selected object
+function FindEndIndex # Find the endpoint of an object
 {  local ObjectIndex=$1
    local ObjectType=${OBfile[${ObjectIndex}]:1:4}
-  # local ObjectType=$2
+   local items=${#OBfile[@]}                        # Count array contents
    case $ObjectType in
    "sepa") # Separators are the simplest of all, being a single line
-      EndIndex=$((ObjectIndex+1))
+      return $ObjectIndex
       ;;
-   "item") # Items are simple enough, always having 5 elements ...
-         # 1.<item, 2.<action, 3.<execute, 4.</action, 5.</item
-       EndIndex=$((ObjectIndex+4))
+   "item")  # Items are simple enough, always having 5 elements ...
+            # 1.<item, 2.<action, 3.<execute, 4.</action, 5.</item
+      return $((ObjectIndex+4))
       ;;
    "menu") # Menus are more complex, containing one or more other types
       menuLevel=0          # Ensure that closing tag belongs to this object
-      j=${ObjectIndex}     # Start counting menu tags from the next element
-      for (( j=$((j+1)); j < items; ++j ))
+      j=$((ObjectIndex+1))     # Start counting menu tags from the next element
+      for ((j;j<items;++j))
       do
          MenuComponentType=${OBfile[${j}]:1:5}  # Looking for menu or /menu
          # Break the loop when it reaches the matching closing menu tag
-         if [ $MenuComponentType == "/menu" ] && [ $menuLevel -eq 0 ]; then
-            EndIndex=$j
-            break
-         elif [ $MenuComponentType == "menu>" ]; then
+         if [ "$MenuComponentType" == "/menu" ] && [ $menuLevel -eq 0 ]; then
+            return $j
+         elif [ "$MenuComponentType" == "menu " ]; then # Enter a contained menu
             menuLevel=$((menuLevel+1))
-         elif [ $MenuComponentType == "/menu" ]; then
+         elif [ "$MenuComponentType" == "/menu" ]; then # Exit a contained menu
             menuLevel=$((menuLevel-1))
          fi
       done
    esac
-   return $EndIndex
+   return $ObjectIndex     # Error returns the calling argument
 } # End FindEndIndex
 
-function PrepareNewLayout  # Save objects at new locations in temporary file
-{  local MovingObject=$1   # Index of the first element of the moving object
-   local LandingPoint=$2   # Index of the target location
-   local Direction=$3      # Moving Up or Moving Down
-
-   FindEndIndex $counter   # Find the end of the passed object
-   local EndIndex=$?
-
-   for (( i=0; i < items; ++i ))
-      do
-         if [ $i -eq $LandingPoint ]; then
-         # If the landing point has been reached
-            if [ $Direction == "Down" ]; then # First save the static object
-               SaveStaticObject $((LandingPoint))
-            fi
-            case $MovingObjectType in  # Then save the moving object ...
-            "sepa") # Separators are the simplest of all, being a single line
-               echo ${OBfile[${MovingObject}]} >> temp.obh
-               ;;
-            "item") SaveAnItem $MovingObject
-               ;;
-            "menu") SaveAMenu $MovingObject
-            esac
-            if [ $Direction == "Up" ]; then # Save the static object after the
-               SaveStaticObject $((LandingPoint))     # after the moving object
-            fi
-            # (a) If at the original location of the moving up object
-         elif [ $i -ge $MovingObject ]&&[ $i -le $EndIndex ]; then
-            continue                      # don't save the original object
-         else
-            # If not at Landing AND not at original home of object
-            echo ${OBfile[${i}]} >> temp.obh # Save the record
-         fi
-      done
-} # End PrepareNewLayout
-
-function SaveStaticObject  # Ensures that the whole static object is saved
-{  local counter=$1        # Start index of the static object
-   local StaticObjectType=${OBfile[${counter}]:1:4}
-   case $StaticObjectType in
-      "sepa") echo ${OBfile[${counter}]} >> temp.obh
+function SaveAnObject  # Saves according to object type
+{
+   local ObjectIndex=$1
+   local ObjectType=${OBfile[${ObjectIndex}]:1:4}
+   case $ObjectType in
+      "sepa") echo ${OBfile[${ObjectIndex}]} >> temp.obh
          ;;
-      "item") SaveAnItem $counter
+      "item") SaveAnItem $ObjectIndex
          ;;
-      "menu") SaveAMenu $counter
+      "menu") SaveAMenu $ObjectIndex
    esac
-} # End SaveStaticObject
+   return 0
+} # End SaveAnObject
 
-function SaveAnItem {   # Loops through array elements containing an item
-                        # adding them to the temp file
+function SaveAnItem { # Loops through array elements containing an item
    local counter=$1           # Content of item = 1.<item ... (header tag)
    local limit=$((counter+4)) # 2.<action, 3.<execute, 4.</action, 5.</item
    while [ $counter -le $limit ]
@@ -184,10 +195,10 @@ function SaveAnItem {   # Loops through array elements containing an item
       echo ${OBfile[${counter}]} >> temp.obh
       counter=$((counter+1))
    done
+   return $counter
 }
 
 function SaveAMenu { # Loops through array elements containing a menu
-                     # adding them to the temp file
    local counter=$1
    FindEndIndex $counter   # Find the end of the passed object
    local limit=$?
@@ -195,4 +206,5 @@ function SaveAMenu { # Loops through array elements containing a menu
    do
       echo ${OBfile[${counter}]} >> temp.obh
    done
+   return $counter
 }

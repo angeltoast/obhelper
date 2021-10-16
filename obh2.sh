@@ -40,11 +40,12 @@ function MakeFile {  # Use OBfile array to prepare the display file
 function FormatRecordForDisplay # Prepares and adds record to display.obh
 {  # $1 = the whole record from the array; $2 = menuLevel; $3 = spaces
    # Sets Gstring to $spaces and Gnumber to $menuLevel
+   Item=$1
    menuLevel=$2
    spaces=$3
+   Type=${Item:1:4}
    # start by removing all '>' extract content after the first '<' and remove quotes
    Item=$(echo $1 | sed -e 's/>//g' | cut -d'<' -f2 | sed -e 's/"//g')
-   Type=${Item:0:4}
    # Prepare the record and add it to the display file (one line per field)
    case $Type in
    "menu") body=$(echo $Item | cut -d'=' -f3 | sed -e 's/>//g')
@@ -117,3 +118,29 @@ function RebuildMenuDotXml { # Rebuild menu.xml from OBfile array
    cp menu.xml temp.obh                   # Maintain parity
    return 0
 } # End RebuildMenuDotXml
+
+function CompareFiles   # Check if temp.obh has changed from $XmlPath
+{
+   filecmp=$(cmp $XmlPath check.obh 2>/dev/null)
+   if [[ $filecmp ]]; then
+      $Dialog --text "Your changes have not yet been saved. Save now?" \
+         --center --on-top                \
+         --text-align=center              \
+         --width=250 --height=100         \
+         --buttons-layout=center          \
+         --button=gtk-no:1 --button=gtk-yes:0
+      if [ $? -ne 0 ]; then
+         ShowMessage "$XmlPath not updated."
+         return 0
+      fi
+      RebuildMenuDotXml
+   fi
+   rm check.obh
+   return 0
+}
+
+Tidy() { # Silently clear temporary files
+   rm display.obh 2>/dev/null
+   rm temp.obh 2>/dev/null
+   return 0
+} # End Tidy

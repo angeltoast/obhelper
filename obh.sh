@@ -35,24 +35,8 @@ declare -a OBfile    # Array to hold a copy of the entire menu.xml file
 # temp.obh     -  Used during session to update OBfile array
 # display.obh  -  Data from menu.xml in simpler format for user information
 
-if command -v yad >/dev/null 2>&1; then
-   Dialog="yad"
-else
-   echo "OBhelper needs Yad to display results."
-   echo "Please use your system's software management application"
-   echo "to install Yad. OBhelper will now exit."
-   read -p "Please press [Enter]"
-   exit
-fi
-
-if [ !$1 ]; then                       # Paths for testing and standard use
-   # XmlPath="/home/$USER/.config/openbox/menu.xml"
-   XmlPath="menu.xml"
-else                                   # May be passed as argument
-   XmlPath=$1
-fi
-
 function Main {
+   Tidy
    cp $XmlPath check.obh               # For comparison on exit
    # Load menu.xml into the array
    i=0
@@ -71,46 +55,36 @@ function Main {
    done
    # Check if temp.obh has changed from $XmlPath
    CompareFiles
+   Tidy
    exit 0
 } # End Main
 
-function CompareFiles   # Check if temp.obh has changed from $XmlPath
-{
-   filecmp=$(cmp $XmlPath check.obh 2>/dev/null)
-   if [[ $filecmp ]]; then
-      $Dialog --text "Your changes have not yet been saved. Save now?" \
-         --center --on-top                \
-         --text-align=center              \
-         --width=250 --height=100         \
-         --buttons-layout=center          \
-         --button=gtk-no:1 --button=gtk-yes:0
-      if [ $? -ne 0 ]; then
-         ShowMessage "$XmlPath not updated."
-         return 0
-      fi
-      RebuildMenuDotXml
-   fi
-   rm check.obh
-   return 0
-}
-function ShowMessage {   # Display a message in a pop-up window
-   # $1 and $2 are optional lines of message text
-   $Dialog --text="$1
-   $2"                        \
-   --text-align=center        \
-   --width=250 --height=100   \
-   --center --on-top          \
-   --buttons-layout=center    \
-   --button=gtk-ok
-} # End ShowMessage
-
-function Debug {   # Insert at any point ...
-      # set -xv
+function Debug { # Insert at any point (without the hashes, obviously) ...
+   # set -xv
       # echo " any variables "
       # Debug "$BASH_SOURCE" "$FUNCNAME" "$LINENO"
    read -p "In file: $1, function:$2, at line:$3"
-   set +xv
+  # set +xv
    return 0
 } # End Debug
+
+if command -v yad >/dev/null 2>&1; then
+   Dialog="yad"
+elif command -v $Dialog >/dev/null 2>&1; then
+   Dialog="zenity"
+else
+   echo "OBhelper needs Yad to display results."
+   echo "Please use your system's software management application"
+   echo "to install Yad. OBhelper will now exit."
+   read -p "Please press [Enter]"
+   exit
+fi
+
+if [ !$1 ]; then                       # Paths for testing or standard use
+   # XmlPath="/home/$USER/.config/openbox/menu.xml"
+   XmlPath="menu.xml"
+else                                   # Path may be passed as argument
+   XmlPath=$1
+fi
 
 Main
