@@ -3,7 +3,7 @@
 # obh.sh - Main module (preparation and system initiation)
 
 # OBhelper - An application to help manage the Openbox static menu
-# Started: 29 August 2021         Updated: 14th October 2021
+# Version: 2021.1a - 17th October 2021
 # Elizabeth Mills
 
 # This program is distributed in the hope that it will be useful, but
@@ -16,7 +16,7 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
-# Depends: Yad or Zenity (sudo apt install yad)
+# Depends: Yad (sudo apt install yad)
 
 # Additional functions
 source obh2.sh
@@ -59,19 +59,8 @@ function Main {
    exit 0
 } # End Main
 
-function Debug { # Insert at any point (without the hashes, obviously) ...
-   # set -xv
-      # echo " any variables "
-      # Debug "$BASH_SOURCE" "$FUNCNAME" "$LINENO"
-   read -p "In file: $1, function:$2, at line:$3"
-  # set +xv
-   return 0
-} # End Debug
-
 if command -v yad >/dev/null 2>&1; then
    Dialog="yad"
-elif command -v $Dialog >/dev/null 2>&1; then
-   Dialog="zenity"
 else
    echo "OBhelper needs Yad to display results."
    echo "Please use your system's software management application"

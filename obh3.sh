@@ -3,7 +3,7 @@
 # obh3.sh - Input and output functions
 
 # OBhelper - An application to help manage the Openbox static menu
-# Started: 29 August 2021         Updated: 8 October 2021
+# Updated: 8 October 2021
 # Elizabeth Mills
 
 # This program is distributed in the hope that it will be useful, but

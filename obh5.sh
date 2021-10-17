@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # obh.sh - Move up and move down
+# Updated: 14th October 2021
 
 # OBhelper - An application to help manage the Openbox static menu
-# Started: 29 August 2021         Updated: 14th October 2021
 # Elizabeth Mills
 
 # This program is distributed in the hope that it will be useful, but
