@@ -7,8 +7,8 @@ A set of Bash shell scripts that try to do what obmenu used to do.
 
 *At this stage of development, it will be safer for you to download the scripts to a testing directory, with a copy of your menu.xml in the same location. Run it with  ./obh.sh*
 
-16th October 2021
-   *  All functions are now working - all known bugs have been fixed;
+18th October 2021
+   *  All known bugs have been fixed;
    *  obhelper uses the Yad suite of GTK dialogs for display, so please make
 sure that you have Yad installed;
    *  There are 6 modules (scripts) - make sure you download them all;

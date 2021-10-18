@@ -3,7 +3,7 @@
 # obh2.sh - File preparation functions
 
 # OBhelper - An application to help manage the Openbox static menu
-# Updated: 8 October 2021
+# Updated: 18th October 2021
 # Elizabeth Mills
 
 # This program is distributed in the hope that it will be useful, but
@@ -16,6 +16,18 @@
 #                51 Franklin Street, Fifth Floor
 #                   Boston, MA 02110-1301 USA
 
+function LoadArray  # Load a file into the array
+{
+   local FileName=$1
+   local i=0
+   while read -r line
+   do
+      OBfile[${i}]=$line
+      i=$((i+1))
+   done < "$FileName"
+   return 0
+}
+
 function MakeFile {  # Use OBfile array to prepare the display file
    # Note: The display file excludes the XML declaration and the opening
    # "<openbox_menu>" and closing "</openbox_menu>" tags, as well as all
@@ -25,7 +37,7 @@ function MakeFile {  # Use OBfile array to prepare the display file
    items=${#OBfile[@]}              # Count records in OBfile array
    menuLevel=0                      # To manage indenting
    spaces=""                        # Also for indenting
-   for (( i=0; i < $items; ++i ))
+   for (( i=0; i < items; ++i ))
    do
       # Read an element from the array and send it for formatting
       FormatRecordForDisplay "${OBfile[${i}]}" "$menuLevel" "$spaces"
@@ -45,20 +57,20 @@ function FormatRecordForDisplay # Prepares and adds record to display.obh
    spaces=$3
    Type=${Item:1:4}
    # start by removing all '>' extract content after the first '<' and remove quotes
-   Item=$(echo $1 | sed -e 's/>//g' | cut -d'<' -f2 | sed -e 's/"//g')
+   Item=$(echo "$1" | sed -e 's/>//g' | cut -d'<' -f2 | sed -e 's/"//g')
    # Prepare the record and add it to the display file (one line per field)
    case $Type in
-   "menu") body=$(echo $Item | cut -d'=' -f3 | sed -e 's/>//g')
+   "menu") body=$(echo "$Item" | cut -d'=' -f3 | sed -e 's/>//g')
          echo -e "$i\n$spaces$body\nmenu\n\n" >> display.obh
          Gnumber=$((menuLevel+1))
          Indentation $Gnumber             # Sets Gstring to spaces
       ;;
-   "item") body=$(echo $Item | cut -d'=' -f2 | sed -e 's/>//g')
+   "item") body=$(echo "$Item" | cut -d'=' -f2 | sed -e 's/>//g')
          j=$((i+2))                       # Grab the 'execute' command
-         execute=$(echo ${OBfile[${j}]} | cut -d'<' -f2 | cut -d'>' -f2)
+         execute=$(echo "${OBfile[${j}]}" | cut -d'<' -f2 | cut -d'>' -f2)
          echo -e "$i\n$spaces$body\nitem\nexecute\n$execute" >> display.obh
       ;;
-   "sepa") body=$(echo $Item | cut -d'=' -f2 | sed -e 's/[/]//')
+   "sepa") body=$(echo "$Item" | cut -d'=' -f2 | sed -e 's/[/]//')
          echo -e "$i\n$spaces$body\nseparator\n\n" >> display.obh
       ;;
    "/men")
@@ -83,47 +95,36 @@ function Indentation { # Indentation according to menu level
    return 0
 } # End Indentation
 
-function RebuildMenuDotXml { # Rebuild menu.xml from OBfile array
+function SaveTheArray # Build check.obh from OBfile array
+{
    menuLevel=0
    spaces=""
    items=${#OBfile[@]}                    # Count records in the array
-   for (( i=0; i < $items; ++i ))
+   rm check.obh 2>/dev/null               # Just in case
+   for (( i=0; i < items; ++i ))
    do
       item=${OBfile[${i}]}
-      # Extract type
-      Type=${item:2:4}
-      # Prepare the record and add it to the display file (one line per field)
-      case $Type in
-      "menu") body=$(echo $item1 | cut -d'=' -f3 | sed -e 's/>//g')
-            echo -e "$i\n$spaces$body\nmenu\n\n" >> menu.xml
-            Gnumber=$((menuLevel+1))
-            Indentation $Gnumber          # Sets Gstring to spaces
-            spaces="Gstring"
+      echo -e "$spaces$item" >> check.obh
+      Type=${item:1:4}                    # Extract type
+      case $Type in                       # Maintain indentation
+      "menu"|"item"|"acti") menuLevel=$((menuLevel+1))    # Increase for menu
+            Indentation $menuLevel
+            spaces="$Gstring"
          ;;
-      "item") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/>//g')
-            j=$((i+2))                    # Grab the 'execute' command
-            execute=$(echo ${OBfile[${j}]} | cut -d'<' -f2 | cut -d'>' -f2)
-            echo -e "$i\n$spaces$body\nitem\nexecute\n$execute" >> menu.xml
-         ;;
-      "sepa") body=$(echo $item1 | cut -d'=' -f2 | sed -e 's/[/]//')
-            echo -e "$i\n$spaces$body\nseparator\n\n" >> menu.xml
-         ;;
-      "/men")
-            Gnumber=$((menuLevel-1))      # Special action for end of menu
-            Indentation $Gnumber          # Sets Gstring to spaces
-         ;;
-      *) continue
+      "/men"|"/ite"|"/act") menuLevel=$((menuLevel-1))    # Decrease for end menu
+            Indentation $menuLevel
+            spaces="$Gstring"
       esac
    done
-   cp menu.xml temp.obh                   # Maintain parity
    return 0
-} # End RebuildMenuDotXml
+} # End SaveTheArray
 
-function CompareFiles   # Check if temp.obh has changed from $XmlPath
+function CompareFiles   # Check if the array has changed from $XmlPath
 {
-   filecmp=$(cmp $XmlPath check.obh 2>/dev/null)
+   SaveTheArray         # Saves to check.obh
+   filecmp=$(cmp "$XmlPath" check.obh)
    if [[ $filecmp ]]; then
-      $Dialog --text "Your changes have not yet been saved. Save now?" \
+      yad --text "Your changes have not yet been saved. Save now?" \
          --center --on-top                \
          --text-align=center              \
          --width=250 --height=100         \
@@ -133,9 +134,10 @@ function CompareFiles   # Check if temp.obh has changed from $XmlPath
          ShowMessage "$XmlPath not updated."
          return 0
       fi
-      RebuildMenuDotXml
+      mv "$XmlPath" "$XmlPath.safe"
+      mv check.obh "$XmlPath"
+      ShowMessage "Your work has been saved to $XmlPath"
    fi
-   rm check.obh
    return 0
 }
 

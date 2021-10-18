@@ -1,9 +1,14 @@
-# OBhelper User Manual
-  (updated: 17/10/2021)
+# OBhelper User Manual				updated: 18/10/2021
+This manual has similar content to the wiki in the OBhelper Github repository.
+If there are any differences, this file is the most recently updated.
+
+-------------------------- **About OBhelper** ------------------------
 
 Openbox has a static menu system that is usually called by a right-click of the mouse anywhere on the desktop. The menu can contain links to any applications you choose, all defined in a configuration file called menu.xml
 
 The objective of OBhelper is to display the contents of that configuration file in a simplified scrollable list, so that any entry may be selected, then edited, deleted or moved up or down, or new entries may be inserted. OBhelper uses Yad to provide an interactive graphical display.
+
+--------------------------- **Using OBhelper** ------------------------------
 
 At startup, OBhelper has a row of buttons across the bottom, and a listbox showing all the various items in your menu.xml in a concise format. You just select an item, then click a button to perform any of the actions:
 
@@ -15,14 +20,14 @@ At startup, OBhelper has a row of buttons across the bottom, and a listbox showi
      Save your changes to menu.xml
      Quit
 
+*Save*
+----
+All your changes in a session are kept in a temporary file - your menu.xml file is not affected at all until you click the Save button. If you leave the session without saving, your changes will be discarded. So, if you delete something in the session and then regret it, all is not lost - just exit without saving.
+
 There are three kinds of entry in the Openbox static menu:
    Menus
    Actions (also known as 'Items')
    Separators
-
-*Save*
-----
-All your changes in a session are kept in a temporary file - your menu.xml file is not affected at all until you click the Save button. If you leave the session without saving, your changes will be discarded. So, if you delete something in the session and then regret it, all is not lost - just exit without saving.
 
 *Menus*
 -----
@@ -56,7 +61,8 @@ If a sub-menu is moved up or down, its contents move with it.
 
 A menu cannot be moved into another menu, but a new menu can be created inside an existing menu, and items can be moved into it.
 
-**menu.xml**
+------------------------- **About menu.xml** --------------------------
+
 At the heart of the Openbox static menu system is a configuration file, which is usually located at ~/.config/openbox/menu.xml
 
 The menu.xml can be edited manually. The structure of each object within the menu is actually quite simple. Separators are only one line, items each consist of five lines, and menus may be quite complex, with items and sub-menus nested inside them.

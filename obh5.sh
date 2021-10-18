@@ -20,7 +20,7 @@ function MoveUp # Check that the move is valid before calling
 {               # the PrepareNewLayout function to process the move
    MovingObjectIndex=$1 # Index of selected object's first element in the array
    MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
-   if [ $MovingObjectIndex -lt 3 ]; then
+   if [ $MovingObjectIndex -lt 4 ]; then
       ShowMessage "Objects cannot move out of Openbox menu"
       return 1
    fi
@@ -90,24 +90,16 @@ function PrepareNewLayout  # Save objects at new locations in temporary file
    do
       if [ $x -eq $LandingPoint ]; then         # The moving object
          SaveAnObject $MovingObjectIndex
-         if [ $? -eq $MovingObjectIndex ]; then
-            return 1
-         else
-            x=$((x+EndIndex-MovingObjectIndex))
-         fi
+         x=$((x+EndIndex-MovingObjectIndex))
       elif [ $x -eq $StartStaticObject ]; then  # The static object
          SaveAnObject $((StaticObjectIndex))
-         if [ $? -eq $StaticObjectIndex ]; then
-            return 1
-         else
-            x=$((x+EndStaticObject-StaticObjectIndex))
-         fi
+         x=$((x+EndStaticObject-StaticObjectIndex))
       else
          echo ${OBfile[${x}]} >> temp.obh       # All other records
       fi
    done
 # Rebuild the array from the temp file
-   readarray -t OBfile < temp.obh
+   LoadArray "temp.obh"
 } # End PrepareNewLayout
 
 function FindStartIndex # Find the start point of an object
@@ -179,10 +171,13 @@ function SaveAnObject  # Saves according to object type
    local ObjectType=${OBfile[${ObjectIndex}]:1:4}
    case $ObjectType in
       "sepa") echo ${OBfile[${ObjectIndex}]} >> temp.obh
+            return 1
          ;;
       "item") SaveAnItem $ObjectIndex
+            return $?
          ;;
       "menu") SaveAMenu $ObjectIndex
+            return $?
    esac
    return 0
 } # End SaveAnObject
