@@ -1,16 +1,14 @@
 #!/bin/bash
-
 # obh.sh
+# Version: 2021.1d - 28th October 2021
 
 # OBhelper - An application to help manage the Openbox static menu
-# Version: 2021.1c - 208th October 2021
 # Elizabeth Mills
 
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-
+#  This program is distributed in the hope that it will be useful
+#    but WITHOUT ANY WARRANTY; without even the implied warranty
+#      of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#       See the GNU General Public License for more details.
 #    A copy of the GNU General Public License is available from:
 #              the Free Software Foundation, Inc.
 #                51 Franklin Street, Fifth Floor
@@ -18,15 +16,23 @@
 
 # Depends: Yad (sudo apt install yad)
 
-# Global variables
-Gnumber=0            # For returning integers from functions
-Gstring=""           # For returning strings from functions
-declare -a OBfile    # Array to hold a copy of the entire menu.xml file
-
 # Data files
-# menu.xml     -  The Openbox static menu configuration file
-# temp.obh     -  Used during session to update OBfile array
-# display.obh  -  Data in simpler format for user information
+   # menu.xml        #  The Openbox static menu configuration file
+   # temp.obh        #  Used during session to update OBfile array
+   # display.obh     #  Data in condensed format for user information
+
+# Global variables
+   Gnumber=0         # For returning integers from functions
+   Gstring=""        # For returning strings from functions
+   declare -a OBfile # Array to hold a copy of the entire menu.xml file
+
+# Set path variable ...
+   if [ !$1 ]; then
+   #   XmlPath="/home/$USER/.config/openbox/menu.xml"
+       XmlPath="menu.xml"
+   else                                   # Path may be passed as argument
+      XmlPath=$1
+   fi
 
 function Main {
    LoadArray "$XmlPath"                   # Load the main file into the array
@@ -42,8 +48,7 @@ function Main {
    exit 0
 } # End Main
 
-function LoadArray  # Load a file into the array
-{
+function LoadArray { # Load a file into the array
    local FileName=$1
    local i=0
    while read -r line
@@ -51,14 +56,15 @@ function LoadArray  # Load a file into the array
       OBfile[${i}]=$line
       i=$((i+1))
    done < "$FileName"
+   OBfile[${i}]=$line
    return 0
 }
 
 function MakeFile {  # Use OBfile array to prepare the display file
-   # Note: The display file excludes the XML declaration and the opening
-   # "<openbox_menu>" and closing "</openbox_menu>" tags, as well as all
-   # other closing tags (</menu> </item> </action>)
-   # But those items are all in the OBfile array for consistency with menu.xml
+# Note: The display file excludes the XML declaration and the opening
+#       "<openbox_menu>" and closing "</openbox_menu>" tags, as well as
+#       all other closing tags (</menu> </item> </action>). However, all
+#       those objects are in the OBfile array for consistency with menu.xml
    rm display.obh 2>/dev/null
    items=${#OBfile[@]}              # Count records in OBfile array
    menuLevel=0                      # To manage indenting
@@ -75,8 +81,8 @@ function MakeFile {  # Use OBfile array to prepare the display file
    return 0
 } # End MakeFile
 
-function FormatRecordForDisplay # Prepares and adds record to display.obh
-{  # $1 = the whole record from the array; $2 = menuLevel; $3 = spaces
+function FormatRecordForDisplay { # Prepares and adds record to display.obh
+   # $1 = the whole record from the array; $2 = menuLevel; $3 = spaces
    # Sets Gstring to $spaces and Gnumber to $menuLevel
    Item=$1
    menuLevel=$2
@@ -111,33 +117,39 @@ function FormatRecordForDisplay # Prepares and adds record to display.obh
 function Indentation { # Indentation according to menu level
    case $1 in
    0) Gstring="" ;;
-   1) Gstring="      " ;;
-   2) Gstring="           " ;;
-   3) Gstring="                 " ;;
-   4) Gstring="                        " ;;
-   5) Gstring="                             " ;;
-   6) Gstring="                                  "
+   1) Gstring="    " ;;
+   2) Gstring="        " ;;
+   3) Gstring="            " ;;
+   4) Gstring="               " ;;
+   5) Gstring="                    " ;;
+   6) Gstring="                        " ;;
+   7) Gstring="                            " ;;
+   8) Gstring="                                " ;;
+   9) Gstring="                                    "
    esac
    return 0
 } # End Indentation
 
-function SaveTheArray # Build check.obh from OBfile array
-{
+function SaveTheArray { # Build check.obh from OBfile array
    menuLevel=0
    spaces=""
    items=${#OBfile[@]}                    # Count records in the array
-   rm check.obh 2>/dev/null               # Just in case
-   for (( i=0; i < items; ++i ))
+   rm check.obh 2>/dev/null               # Clear the deck
+   for (( i=0; i <= items; ++i ))
    do
       item=${OBfile[${i}]}
-      echo -e "$spaces$item" >> check.obh
       Type=${item:1:4}                    # Extract type
-      case $Type in                       # Maintain indentation
-      "menu"|"item"|"acti") menuLevel=$((menuLevel+1))    # Increase for menu
+      if [ "$Type" == "/men" ]; then      # Reduce indentation before
+         Indentation $((menuLevel-1))     # saving end menu tag
+         spaces="$Gstring"
+      fi
+      echo -e "$spaces$item" >> check.obh
+      case "$Type" in                     # Maintain indentation
+      "menu"|"item"|"acti") menuLevel=$((menuLevel+1)) # Increase for start tags
             Indentation $menuLevel
             spaces="$Gstring"
          ;;
-      "/men"|"/ite"|"/act") menuLevel=$((menuLevel-1))    # Decrease for end menu
+      "/men"|"/act"|"exec") menuLevel=$((menuLevel-1)) # Decrease for end tags
             Indentation $menuLevel
             spaces="$Gstring"
       esac
@@ -145,8 +157,7 @@ function SaveTheArray # Build check.obh from OBfile array
    return 0
 } # End SaveTheArray
 
-function CompareFiles   # Check if the array has changed from $XmlPath
-{
+function CompareFiles { # Check if the array has changed from $XmlPath
    SaveTheArray         # Saves to check.obh
    filecmp=$(cmp "$XmlPath" check.obh)
    if [[ $filecmp ]]; then
@@ -165,7 +176,7 @@ function CompareFiles   # Check if the array has changed from $XmlPath
       ShowMessage "Your work has been saved to $XmlPath"
    fi
    return 0
-}
+} # End CompareFiles
 
 Tidy() { # Silently clear temporary files
    rm display.obh 2>/dev/null
@@ -288,8 +299,7 @@ function EditItem { # Load, edit and save the record
    return 0
 } # End EditItem
 
-function EditMenu  # Load, edit and save the record
-{
+function EditMenu { # Load, edit and save the record
    OBID=$1     # $1 is array record number
    # Extract ID (removing quotes)
    MenuID=$(echo "${OBfile[$OBID]}" | sed -e 's/"//g' | cut -d'=' -f2 | cut -d'-' -f3 | cut -d' ' -f1)
@@ -314,9 +324,8 @@ function EditMenu  # Load, edit and save the record
    return 0
 } #  EditMenu
 
-function EditSeparator {  # Load, edit and save the separator
-               # $1 is array record number
-   OBID=$1
+function EditSeparator { # Load, edit and save the separator
+   OBID=$1               # $1 is array record number
    # Extract Label (removing quotes and '>')
    Label=$(echo "${OBfile[$OBID]}" | cut -d'=' -f2 | sed -e 's/["/>]//g')
    Gstring=$(yad --title='OBhelper'    \
@@ -333,8 +342,7 @@ function EditSeparator {  # Load, edit and save the separator
 } # End EditSeparator
 
 function EditObject { # Choose action based on type of object
-                        # $1 is selected object's index in the array
-   item=${OBfile[${1}]:1:4}
+   item=${OBfile[${1}]:1:4} # $1 is selected object's index in the array
    case $item in
    "menu") EditMenu "$1"  # Load menu fields, edit and save
    ;;
@@ -348,7 +356,7 @@ function EditObject { # Choose action based on type of object
    return 0
 } # End EditObject
 
-function ShowMessage {   # Display a message in a pop-up window
+function ShowMessage { # Display a message in a pop-up window
    # $1 and $2 are optional lines of message text
    yad --text="$1
    $2"                        \
@@ -359,9 +367,8 @@ function ShowMessage {   # Display a message in a pop-up window
    --button=gtk-ok
 } # End ShowMessage
 
-function AddMenu # Accept user input, rebuild temp.obh & copy to OBfile
-{
-   ArrayElement=$1   # Position in the array of the new menu
+function AddMenu { # Accept user input, rebuild temp.obh & copy to OBfile
+   ArrayElement=$1 # $1 is the position in the array of the new menu
    Gstring=$(yad --title='OBhelper'    \
       --form --center --on-top         \
       --width=500 --height=200         \
@@ -372,9 +379,9 @@ function AddMenu # Accept user input, rebuild temp.obh & copy to OBfile
       --text='Enter details (ID must be a number unique to this menu)')
    if [ $? -eq 1 ]; then return 0; fi        # 'Cancel' was pressed
 
-   MenuID=$(echo "$Gstring" | cut -d'|' -f2)   # Extract the menu ID entered
-   if CheckMenuID "$MenuID"; then                      # Check if number already used
-  # if [ $? -ne 0 ]; then                     # Warn user
+   MenuID=$(echo "$Gstring" | cut -d'|' -f2) # Extract the menu ID entered
+   if CheckMenuID "$MenuID"; then            # Check if number already used
+  # if [ $? -ne 0 ]; then                    # Warn user
       ShowMessage "The ID $MenuID is already in use." "Please enter a different number."
       AddMenu $ArrayElement    # Restart this function
    fi
@@ -386,11 +393,11 @@ function AddMenu # Accept user input, rebuild temp.obh & copy to OBfile
    do
       if [[ $i -eq $ArrayElement ]]; then # Insert new record at the right place
          echo "<menu id=\"root-menu-$MenuID\" label=\"$MenuLabel\">" >> temp.obh
-         echo "<item label=\"Item\">" >> temp.obh           # Including a
-         echo "<action name=\"Execute\">" >> temp.obh       # dummy item
-         echo "<execute>Action</execute>" >> temp.obh
-         echo "</action>" >> temp.obh
-         echo "</item>" >> temp.obh
+         echo "<item label=\"Item\">" >> temp.obh           # Include a
+         echo "<action name=\"Execute\">" >> temp.obh       # dummy item,
+         echo "<execute>Action</execute>" >> temp.obh       # so that the
+         echo "</action>" >> temp.obh                       # menu is
+         echo "</item>" >> temp.obh                         # not empty
          echo "</menu>" >> temp.obh
          SaveAnObject $i   # Check and save the original object at this index
          AddedLines=$?     # SaveAnObject returns number of lines added
@@ -400,13 +407,11 @@ function AddMenu # Accept user input, rebuild temp.obh & copy to OBfile
          echo "${OBfile[${i}]}" >> temp.obh
       fi
    done
-
    LoadArray "temp.obh"         # Rebuild the array from temp.obh
    return 0
 } # End AddMenu
 
-function CheckMenuID  # Check the array for any other menus with this ID
-{
+function CheckMenuID { # Check the array for any other menus with this ID
    MenuID=$1
    OBID=$2
    items=${#OBfile[@]}                                      # Count records
@@ -420,9 +425,8 @@ function CheckMenuID  # Check the array for any other menus with this ID
    done
 } # End CheckMenuID
 
-function AddItem # Accept user input, rebuild temp.obh & copy to OBfile
-{
-   ArrayElement=$1   # Position in the array of the new item
+function AddItem { # Accept user input, rebuild temp.obh & copy to OBfile
+   ArrayElement=$1 # $1 is the position in the array of the new item
    Gstring=$(yad --title='OBhelper'    \
       --form --center --on-top         \
       --width=500 --height=200         \
@@ -434,7 +438,6 @@ function AddItem # Accept user input, rebuild temp.obh & copy to OBfile
       --field='Command'                \
       "" "Execute" "")
    if [ $? -eq 1 ]; then return 0; fi           # 'Cancel' was pressed
-
    ItemLabel=$(echo $Gstring | cut -d'|' -f1)   # Extract the label
    ItemAction=$(echo $Gstring | cut -d'|' -f3)  # Extract the action
    rm temp.obh 2>/dev/null
@@ -461,10 +464,9 @@ function AddItem # Accept user input, rebuild temp.obh & copy to OBfile
    return 0
 } # End AddItem
 
-function AddSeparator # Accept user input, rebuild temp.obh & copy to OBfile
-{  # $1 is the position in the array of the selected item in display.obh
+function AddSeparator { # Accept user input, rebuild temp.obh & copy to OBfile
+   # $1 is the position in the array of the selected item
    ArrayElement=$1   # Position in the array for the new separator
-
    Gstring=$(yad --title='OBhelper'    \
       --form --center --on-top         \
       --width=500 --height=200         \
@@ -473,7 +475,6 @@ function AddSeparator # Accept user input, rebuild temp.obh & copy to OBfile
       --buttons-layout=center          \
       --field='Label')
    if [ $? -eq 1 ]; then return 0; fi           # 'Cancel' was pressed
-
    SeparatorLabel=$(echo $Gstring | cut -d'|' -f1)   # Extract the label
    rm temp.obh 2>/dev/null                      # Clear the work file
    items=${#OBfile[@]}                          # Count records in array
@@ -492,8 +493,8 @@ function AddSeparator # Accept user input, rebuild temp.obh & copy to OBfile
    return 0
 } # End AddSeparator
 
-function MoveUp # Check that the move is valid before calling
-{               # the PrepareNewLayout function to process the move
+function MoveUp { # Check that the move is valid before calling
+                  # the PrepareNewLayout function to process the move
    MovingObjectIndex=$1 # Index of selected object's first element in the array
    MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
    if [ $MovingObjectIndex -lt 4 ]; then
@@ -504,8 +505,8 @@ function MoveUp # Check that the move is valid before calling
    return 0
 } # End MoveUp
 
-function MoveDown # Check that the move is valid before calling
-{                 # the PrepareNewLayout function to process the move
+function MoveDown { # Check that the move is valid before calling
+                     # the PrepareNewLayout function to process the move
    MovingObjectIndex=$1 # Index of selected object's 1st element in array
    MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
    items=${#OBfile[@]} # Count records in the array
@@ -517,17 +518,16 @@ function MoveDown # Check that the move is valid before calling
    return 0
 } # End MoveDown
 
-function PrepareNewLayout  # Save objects at new locations in temporary file
-{  MovingObjectIndex=$1    # First element of the moving object
-   Direction=$2            # Moving Up or Moving Down
+function PrepareNewLayout { # Save objects at new locations in temporary file
+   MovingObjectIndex=$1                # First element of the moving object
+   Direction=$2                        # Moving Up or Moving Down
 # First establish the type of the moving object ...
    MovingObjectType=${OBfile[${MovingObjectIndex}]:1:4}
    # and the index of its last element ...
    if [ $MovingObjectType == "sepa" ]; then  # If moving object is separator,
       EndIndex=$MovingObjectIndex            # Only one line
    elif [ $MovingObjectType == "menu" ]||[ $MovingObjectType == "item" ]; then
-      # The only other valid types
-      FindEndIndex $MovingObjectIndex        # Returns last line of moving object
+      FindEndIndex $MovingObjectIndex  # Returns last line of moving object
       EndIndex=$?
    else
       ShowMessage "Invalid record type being moved"
@@ -578,8 +578,7 @@ function PrepareNewLayout  # Save objects at new locations in temporary file
    LoadArray "temp.obh"
 } # End PrepareNewLayout
 
-function FindStartIndex # Find the start point of an object
-{
+function FindStartIndex { # Find the start point of an object
    local TailIndex=$1
    local TailTag=${OBfile[${TailIndex}]:1:5} # </menu, </item, or <separ
    case $TailTag in
@@ -610,8 +609,8 @@ function FindStartIndex # Find the start point of an object
    return $ObjectIndex     # Error returns the calling argument
 } # End FindStartIndex
 
-function FindEndIndex # Find the endpoint of an object
-{  local ObjectIndex=$1
+function FindEndIndex { # Find the endpoint of an object
+   local ObjectIndex=$1
    local ObjectType=${OBfile[${ObjectIndex}]:1:4}
    local items=${#OBfile[@]}                        # Count array contents
    case $ObjectType in
@@ -641,8 +640,7 @@ function FindEndIndex # Find the endpoint of an object
    return $ObjectIndex     # Error returns the calling argument
 } # End FindEndIndex
 
-function SaveAnObject  # Saves according to object type
-{
+function SaveAnObject { # Saves according to object type
    local ObjectIndex=$1
    local ObjectType=${OBfile[${ObjectIndex}]:1:4}
    case $ObjectType in
@@ -667,7 +665,7 @@ function SaveAnItem { # Loops through array elements containing an item
       counter=$((counter+1))
    done
    return $counter
-}
+} # End SaveAnItem
 
 function SaveAMenu { # Loops through array elements containing a menu
    local counter=$1
@@ -678,17 +676,15 @@ function SaveAMenu { # Loops through array elements containing a menu
       echo ${OBfile[${counter}]} >> temp.obh
    done
    return $counter
-}
+} # End SaveAMenu
 
-function DeleteObject
-{  # $1 is the index in the array of the selected item in display.obh
+function DeleteObject { # $1 is the index in the array of the selected item
    ArrayElement=$1
    StartNumber=$ArrayElement
    EndNumber=$ArrayElement
    Item=${OBfile[${ArrayElement}]}                 # Find in array
    ItemType=${Item:1:4}
    items=${#OBfile[@]}                             # Count records in the array
-
    case $ItemType in
    "menu")
       ItemLabel=$(echo "$Item" | cut -d'=' -f3 | sed -e 's/[">]//g')
@@ -708,26 +704,24 @@ function DeleteObject
          menuLevel=$Gnumber
          spaces="$Gstring"
       done
-
       ShortList                     # Display all contents of the menu
       selected=$?                   # 0=Cancel 1=All 2=Header 252=Window closed
       case $selected in
-      252) ShowMessage "$ItemLabel not deleted."
+      252) ShowMessage "$ItemLabel not removed."
          return 0
       ;;
-      0) ShowMessage "$ItemLabel not deleted."
+      0) ShowMessage "$ItemLabel not removed."
          return 0
       ;;
       1) # Delete all
-         yad --text "Delete the $ItemLabel menu and contents?
-                        Are you sure"  \
+         yad --text "Remove the $ItemLabel menu and contents?"  \
             --text-align=center        \
             --center --on-top          \
             --width=250 --height=100   \
             --buttons-layout=center    \
             --button=gtk-no:1 --button=gtk-yes:0
          if [ $? -ne 0 ]; then
-            ShowMessage "$ItemLabel not deleted."
+            ShowMessage "$ItemLabel not removed."
             return 1
          fi
          rm temp.obh 2>/dev/null
@@ -742,15 +736,14 @@ function DeleteObject
          done
       ;;
       2) # Delete the opening and closing tags only
-         yad --text "Delete the $ItemLabel menu, leaving the contents?
-                        Are you sure"  \
+         yad --text "Remove the $ItemLabel menu, leaving the contents?"  \
             --text-align=center        \
             --center --on-top          \
             --width=250 --height=100   \
             --buttons-layout=center    \
             --button=gtk-no:1 --button=gtk-yes:0
          if [ $? -ne 0 ]; then
-            ShowMessage "$ItemLabel not deleted."
+            ShowMessage "$ItemLabel not removed."
             return 1
          fi
          rm temp.obh 2>/dev/null
@@ -768,15 +761,14 @@ function DeleteObject
       esac
       ;;
    "item") ItemLabel=$(echo "$Item" | cut -d'=' -f2 | sed -e 's/[">]//g')
-      yad --text "Are you sure you want to delete
-                  the '$ItemLabel' item?"   \
+      yad --text "Remove '$ItemLabel' from the menu?"   \
          --text-align=center        \
          --center --on-top          \
          --width=250 --height=100   \
          --buttons-layout=center    \
          --button=gtk-no:1 --button=gtk-yes:0
       if [ $? -ne 0 ]; then
-         ShowMessage "$ItemLabel not deleted."
+         ShowMessage "$ItemLabel not removed."
          return 1
       fi
       rm temp.obh 2>/dev/null
@@ -796,15 +788,14 @@ function DeleteObject
       done
       ;;
    "sepa") ItemLabel=$(echo "$Item" | cut -d'=' -f2 | sed -e 's/[">/]//g')
-      yad --text "Are you sure you want to delete
-                  the '$ItemLabel' separator?"   \
+      yad --text "Remove '$ItemLabel' from the menu?"   \
          --text-align=center        \
          --center --on-top          \
          --width=250 --height=100   \
          --buttons-layout=center    \
          --button=gtk-no:1 --button=gtk-yes:0
       if [ $? -ne 0 ]; then
-         ShowMessage "$ItemLabel not deleted."
+         ShowMessage "$ItemLabel not removed."
          return 1
       fi
       rm temp.obh 2>/dev/null
@@ -824,11 +815,11 @@ function DeleteObject
    return 0
 } # End DeleteObject
 
-function ShortList # Display the selected items in a listbox # TEST
-{  # Items are only displayed for information. They are not selectable.
+function ShortList { # Display the selected items in a listbox
+   # Items are only displayed for information. They are not selectable.
    cat display.obh | yad --list           \
       --center --width=750 --height=300   \
-      --text="The menu contains the following items. Do you wish to delete them all, or just the menu header?" \
+      --text="The menu contains the following items. Do you wish to remove them all, or just the menu header?" \
       --text-align=center        \
       --title="OBhelper"         \
       --search-column=0          \
@@ -840,25 +831,19 @@ function ShortList # Display the selected items in a listbox # TEST
       --no-selection             \
       --buttons-layout=center    \
       --button="Cancel":0        \
-      --button="Delete All":1    \
-      --button="Delete Menu Header":2
+      --button="Remove All":1    \
+      --button="Remove Menu Header":2
    selected=$?
    return $selected
 } # End ShortList
 
-if [ !$1 ]; then                       # Paths for testing or standard use
-   # XmlPath="/home/$USER/.config/openbox/menu.xml"
-   XmlPath="menu.xml"
-else                                   # Path may be passed as argument
-   XmlPath=$1
-fi
-
-if command -v yad >/dev/null 2>&1; then
-   Main
-else
-   echo "OBhelper needs Yad for input and display."
-   echo "Please use your system's software management application"
-   echo "to install Yad. OBhelper will now exit."
-   read -p "Please press [Enter]"
-   exit
-fi
+# Check that Yad is installed
+   if command -v yad >/dev/null 2>&1; then
+      Main
+   else
+      echo "OBhelper needs Yad for input and display."
+      echo "Please use your system's software management"
+      echo "application to install Yad. OBhelper will now exit."
+      read -p "Please press [Enter]"
+      exit
+   fi
