@@ -5,7 +5,7 @@ A Bash script that tries to do what obmenu used to do.
 
 **Currently released for testing only - not ready for deployment.**
 
-*At this stage of development, it will be safer for you to download the script to a testing directory, with a copy of your menu.xml in the same location. Run it with  ./obh.sh*
+*Unfortunately, due to illness, I have been unable to continue development. If anyone would like to clone the project and carry it forward, that would be nice. In the meantime, it will be safer for you to download the script to a testing directory, with a copy of your menu.xml in the same location. Run it with  ./obh.sh*
 
 * obhelper uses the Yad suite of GTK dialogs for display, so please make sure that you have Yad installed;
 *	Changes are not saved to menu.xml during a session. If you are happy with the changes at any stage, you can make them permanent by clicking 'Save'. If you leave the session without saving, all changes will be discarded;
